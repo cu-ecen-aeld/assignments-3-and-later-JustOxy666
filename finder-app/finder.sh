@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 if [ "$1" = "" ] || [ "$2" = "" ]; then
     echo Plese specify at least two arguments
