@@ -1,4 +1,3 @@
-// #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <syslog.h>
@@ -11,7 +10,6 @@
 #include <netdb.h> /* gethints() */
 #include <arpa/inet.h> /* get IP */
 #include <pthread.h>
-#include <time.h>
 
 /* ------------------------------------------------------------------------------- */
 /* typedef */
@@ -25,23 +23,15 @@ typedef unsigned long      U32;
 typedef signed long long   S64;
 typedef unsigned long long U64;
 
-#define  S_TO_MS(a)         (a * 1000U)
-#define NS_TO_MS(a)         ((U16)(a / 1000000U))
-#define US_TO_MS(a)         (a * 1000U)
-#define TIMESPEC_TO_S(a,b)  ((U16)(a + (U16)(b / 1000000000U)))
-
-
 /* ------------------------------------------------------------------------------- */
-#define _XOPEN_SOURCE               (700)
-#define SOCKET_DOMAIN               (PF_INET)
-#define SOCKET_TYPE                 (SOCK_STREAM)
-#define DAEMON_ARG                  ("-d")
-#define SOCKET_DATA_FILEPATH        ("/var/tmp/aesdsocketdata")
-#define SOCKET_PORT                 ("9000")
-#define SOCKET_INC_CONNECT_MAX      (50U)
-#define DATA_BLOCK_SIZE             (512U)
-#define NUM_THREADS                 (128)
-#define TIMESTAMP_PRINT_DELAY_MS    (10U * 1000U)
+#define _XOPEN_SOURCE           (700)
+#define SOCKET_DOMAIN           (PF_INET)
+#define SOCKET_TYPE             (SOCK_STREAM)
+#define DAEMON_ARG              ("-d")
+#define SOCKET_DATA_FILEPATH    ("/var/tmp/aesdsocketdata")
+#define SOCKET_PORT             ("9000")
+#define SOCKET_INC_CONNECT_MAX  (50U)
+#define DATA_BLOCK_SIZE         (512U)
 
 /* ------------------------------------------------------------------------------- */
 /* PRIVATE TYPES */
@@ -58,23 +48,12 @@ typedef enum
     PASS = 0
 } Result;
 
-typedef struct
-{
-    int conf_fd;
-    struct sockaddr_in *client_addr;
-    char* client_ip;
-} task_params;
-
-
 /* GLOBAL VARIABLES */
 
 struct addrinfo *servinfo;
 int listen_fd;
 Boolean is_daemon = FALSE;
-pthread_t threads[NUM_THREADS];
-task_params t_params[NUM_THREADS];
-pthread_mutex_t file_mutex;
-Boolean timestamp_thread_exit;
+char *client_ip;
 
 /* ------------------------------------------------------------------------------- */
 /* PPRIVATE FUNCTIONS PROTOTYPES */
@@ -83,14 +62,11 @@ void setup(void);
 void parse_args(int, char**);
 void teardown(void);
 Boolean allocateMemory(U8 **buffer, U16 datablock_size);
-void printClientIpAddress(Boolean open_connection, task_params* t_arg);
+void printClientIpAddress(Boolean open_connection,struct sockaddr_in* client_addr);
 
 int acceptConnection(struct sockaddr_in* client_addr, int listen_fd);
-Boolean readClientDataToFile(int configured_fd);
-Boolean sendDataBackToClient(int configured_fd);
-Boolean aesdsocket_task(void*);
-void timestamp_task(void*);
-U16 getTimespecDiffMs(struct timespec t1, struct timespec t2);
+void readClientDataToFile(int configured_fd);
+void sendDataBackToClient(int configured_fd);
 /* ------------------------------------------------------------------------------- */
 
 void signalHandler(int signal_number)
@@ -136,9 +112,6 @@ void setup(void)
     struct sigaction signal_action;
     struct addrinfo hints;
     pid_t pid;
-
-    /* Init mutex */
-    pthread_mutex_init(&file_mutex, NULL);
 
     /* Init syslog */
     openlog(NULL, LOG_NDELAY, LOG_USER);
@@ -216,21 +189,14 @@ void setup(void)
 
 void teardown(void)
 {
-    timestamp_thread_exit = TRUE;
-    for(int i = 0; i < NUM_THREADS; i++)
-    {
-        close(t_params[i].conf_fd);
-        printClientIpAddress(FALSE, &t_params[i]);
-        pthread_join(threads[i], NULL);
-    }
-
+    close(listen_fd);
     if (remove(SOCKET_DATA_FILEPATH) == FAIL)
     {
         printf("remove: %s\n", strerror(errno));
     }
     
+    printClientIpAddress(FALSE, NULL);
     freeaddrinfo(servinfo);
-    pthread_mutex_destroy(&file_mutex);
 }
 
 Boolean allocateMemory(U8 **buffer, U16 datablock_size)
@@ -246,21 +212,20 @@ Boolean allocateMemory(U8 **buffer, U16 datablock_size)
     return result;
 }
 
-void printClientIpAddress(Boolean open_connection, task_params* t_arg)
+void printClientIpAddress(Boolean open_connection,struct sockaddr_in* client_addr)
 {
-    struct sockaddr_in *sock_addr = t_arg->client_addr;
     if (open_connection == TRUE)
     {
-        t_arg->client_ip = inet_ntoa(sock_addr->sin_addr);
-        printf("Accepted connection from %s\n", t_arg->client_ip);
-        syslog(LOG_INFO, "Accepted connection from %s", t_arg->client_ip);
+        client_ip = inet_ntoa(client_addr->sin_addr);
+        printf("Accepted connection from %s\n", client_ip);
+        syslog(LOG_INFO, "Accepted connection from %s", client_ip);
     }
     else
     {
-        if ((t_arg->client_ip) != NULL)
+        if (client_ip != NULL)
         {
-            printf("Closed connection from %s\n", t_arg->client_ip);
-            syslog(LOG_INFO, "Closed connection from %s", t_arg->client_ip);
+            printf("Closed connection from %s\n", client_ip);
+            syslog(LOG_INFO, "Closed connection from %s", client_ip);
         }
     }
 }
@@ -281,9 +246,8 @@ int acceptConnection(struct sockaddr_in* client_addr, int listen_fd)
     return configured_fd;
 }
 
-Boolean readClientDataToFile(int configured_fd)
+void readClientDataToFile(int configured_fd)
 {
-    Boolean result = TRUE;
     FILE* fstream;
     U8* buf = NULL;
     Boolean data_block_end = FALSE;
@@ -299,8 +263,7 @@ Boolean readClientDataToFile(int configured_fd)
             {
                 printf("recv_read: %s\n", strerror(errno));
                 printf("configured_fd: %d\n", configured_fd);
-                data_block_end = TRUE;
-                result = FALSE;
+                exit(-1);
             }
 
             if (strcmp((char*)&buf[internal_cntr], "\n") == PASS)
@@ -312,14 +275,10 @@ Boolean readClientDataToFile(int configured_fd)
             }
         }
 
-        /* ------------- ENTER CRITICAL SECTION -------------- */
-        pthread_mutex_lock(&file_mutex);
-
         if ((fstream = fopen((char*)SOCKET_DATA_FILEPATH, "a")) == NULL)
         {
             printf("fstream: %s\n", strerror(errno));
-            data_block_end = TRUE;
-            result = FALSE;
+            exit(-1);
         }
 
         /* Copy bytes from buf to file stream */
@@ -332,16 +291,11 @@ Boolean readClientDataToFile(int configured_fd)
         free(buf);
         fflush(fstream);
         fclose(fstream);
-        pthread_mutex_unlock(&file_mutex);
-        /* ------------- EXIT CRITICAL SECTION -------------- */
     }
-
-    return result;
 }
 
-Boolean sendDataBackToClient(int configured_fd)
+void sendDataBackToClient(int configured_fd)
 {
-    Boolean result = TRUE;
     FILE* fstream;
     U8* buf = NULL;
     Boolean data_block_end = FALSE;
@@ -352,13 +306,10 @@ Boolean sendDataBackToClient(int configured_fd)
         /* Send data back to client */
         allocateMemory(&buf, DATA_BLOCK_SIZE);
 
-        /* ------------- ENTER CRITICAL SECTION -------------- */
-        pthread_mutex_lock(&file_mutex);
         if ((fstream = fopen((char*)SOCKET_DATA_FILEPATH, "r+")) == NULL)
         {
             printf("fstream: %s\n", strerror(errno));
-            data_block_end = TRUE;
-            result = FALSE;
+            exit(-1);
         }
 
         /* Put file pointer before next block */
@@ -376,108 +327,20 @@ Boolean sendDataBackToClient(int configured_fd)
         if (send(configured_fd, buf, internal_cntr, 0) == FAIL)
         {
             printf("recv_send: %s\n", strerror(errno));
-            data_block_end = TRUE;
-            result = FALSE;
+            exit(-1);
         }
 
         free(buf);
         fflush(fstream);
         fclose(fstream);
-        pthread_mutex_unlock(&file_mutex);
-        /* ------------- EXIT CRITICAL SECTION -------------- */
     }
-
-    return result;
 }
 
-Boolean aesdsocket_task(void* arg)
-{
-    Boolean result = TRUE;
-    task_params* arguments = (task_params*)arg;
 
-    printClientIpAddress(TRUE, arguments);
-    result &= readClientDataToFile(arguments->conf_fd);
-    result &= sendDataBackToClient(arguments->conf_fd);
-
-    /* Data block complete, close current connection */
-    close(arguments->conf_fd);
-    printClientIpAddress(FALSE, arguments);
-
-    return result;
-}
-
-U16 getTimespecDiffMs(struct timespec t1, struct timespec t2)
-{
-    S32 diff_msec;
-    U16 result = 0U;
-
-    diff_msec = (S_TO_MS(t2.tv_sec) - S_TO_MS(t1.tv_sec)) + (NS_TO_MS(t2.tv_nsec) - NS_TO_MS(t1.tv_nsec));
-
-    if (diff_msec > 0)
-    {
-        result = (U16)diff_msec;
-    }
-
-    return result;
-}
-
-void timestamp_task(void*)
-{
-    FILE *fstream;
-    struct timespec start, now, realtime;
-    struct tm realtime_tm;
-    char timestamp[30] = "timestamp:"; /* timestamp[10] is a start of actual timestamp */
-
-    while (timestamp_thread_exit == FALSE)
-    {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-        memset(&now, 0, sizeof(struct timespec));
-        while ((getTimespecDiffMs(start, now) < TIMESTAMP_PRINT_DELAY_MS) &&
-               (timestamp_thread_exit == FALSE))
-        {
-            usleep(US_TO_MS(250U));
-            clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-        }
-
-        clock_gettime(CLOCK_REALTIME, &realtime);
-        memset(&realtime_tm, 0, sizeof(struct tm));
-        strftime(&timestamp[10], sizeof(timestamp), "%y/%m/%d %H:%M:%S", gmtime(&realtime.tv_sec)); /* year, month, day, hour (in 24 hour format) minute and second */
-        printf("%s\n", timestamp);
-
-        /* ------------- ENTER CRITICAL SECTION -------------- */
-        pthread_mutex_lock(&file_mutex);
-
-        if ((fstream = fopen((char*)SOCKET_DATA_FILEPATH, "a")) == NULL)
-        {
-            printf("fstream: %s\n", strerror(errno));
-        }
-
-        /* Copy bytes from buf to file stream */
-        if (fwrite(timestamp, sizeof(char), sizeof(timestamp), fstream) == 0)
-        {
-            printf("ERROR: Nothing is written to %s", SOCKET_DATA_FILEPATH);
-        }
-
-        fwrite("\n", sizeof(char), 1, fstream);
-
-        /* Free memory */
-        fflush(fstream);
-        fclose(fstream);
-        pthread_mutex_unlock(&file_mutex);
-        /* ------------- EXIT CRITICAL SECTION -------------- */
-    }   
-}
-
-/**
- * 
- *      MAIN FUNCTION
- * 
-*/
 int main(int argc, char** argv)
 {
     int conf_fd;
     struct sockaddr_in client_addr;
-    int i = 1;
 
     /* Handle argument(s) */
     parse_args(argc, argv);
@@ -485,16 +348,18 @@ int main(int argc, char** argv)
 
     /* Setup things and get socket file descriptor */
     setup();
-    pthread_create(&threads[0], NULL, (void*)&timestamp_task, NULL);
 
     while(1)
     {
         /* Accept incoming connection */
         conf_fd = acceptConnection(&client_addr, listen_fd);
-        t_params[i].client_addr = &client_addr;
-        t_params[i].conf_fd = conf_fd;
-        pthread_create(&threads[i], NULL, (void*)aesdsocket_task, (void*)&t_params[i]);
-        i++;
+        printClientIpAddress(TRUE, &client_addr);
+        readClientDataToFile(conf_fd);
+        sendDataBackToClient(conf_fd);
+
+        /* Data block complete, close current connection */
+        close(conf_fd);
+        printClientIpAddress(FALSE, NULL);
     }
 
     teardown();
