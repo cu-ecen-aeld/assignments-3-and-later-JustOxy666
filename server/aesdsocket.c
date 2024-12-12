@@ -30,7 +30,6 @@ typedef unsigned long long U64;
 #define US_TO_MS(a)         (a * 1000U)
 #define TIMESPEC_TO_S(a,b)  ((U16)(a + (U16)(b / 1000000000U)))
 
-
 /* ------------------------------------------------------------------------------- */
 #define _XOPEN_SOURCE               (700)
 #define SOCKET_DOMAIN               (PF_INET)
@@ -45,11 +44,11 @@ typedef unsigned long long U64;
 
 /* ------------------------------------------------------------------------------- */
 /* PRIVATE TYPES */
-
 typedef enum
+
 {
-    FALSE = 0U,
-    TRUE = 1U
+    FALSE,
+    TRUE
 } Boolean;
 
 typedef enum
@@ -442,7 +441,9 @@ void timestamp_task(void*)
         clock_gettime(CLOCK_REALTIME, &realtime);
         memset(&realtime_tm, 0, sizeof(struct tm));
         strftime(&timestamp[10], sizeof(timestamp), "%y/%m/%d %H:%M:%S", gmtime(&realtime.tv_sec)); /* year, month, day, hour (in 24 hour format) minute and second */
+#ifdef DEBUG_ON
         printf("%s\n", timestamp);
+#endif /* DEBUG_ON */
 
         /* ------------- ENTER CRITICAL SECTION -------------- */
         pthread_mutex_lock(&file_mutex);
