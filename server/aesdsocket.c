@@ -75,6 +75,12 @@ task_params t_params[NUM_THREADS];
 pthread_mutex_t file_mutex;
 Boolean timestamp_thread_exit;
 
+/**
+ * Flag that indicates whether any client started sending to socket
+ * Controls when timestamping thread starts outputting to file
+ */
+Boolean client_started_sending; 
+
 /* ------------------------------------------------------------------------------- */
 /* PPRIVATE FUNCTIONS PROTOTYPES */
 void signalHandler(int);
@@ -139,6 +145,8 @@ void setup(void)
     struct sigaction signal_action;
     struct addrinfo hints;
     pid_t pid;
+
+    client_started_sending = FALSE;
 
     /* Init mutex */
     pthread_mutex_init(&file_mutex, NULL);
@@ -310,6 +318,14 @@ Boolean readClientDataToFile(int configured_fd)
                 result = FALSE;
             }
 
+            if (client_started_sending == FALSE)
+            {
+#ifdef DEBUG_ON
+                printf("readClientDataToFile(): Started timestamping now\n");
+#endif /* DEBUG_ON */
+                client_started_sending = TRUE;
+            }
+
             if (strcmp((char*)&buf[internal_cntr], "\n") == PASS)
             {
                 /* \n is two symbols */
@@ -435,46 +451,50 @@ void timestamp_task(void*)
     struct tm realtime_tm;
     char timestamp[30] = "timestamp:"; /* timestamp[10] is a start of actual timestamp */
 
-    while (timestamp_thread_exit == FALSE)
+    while ((timestamp_thread_exit == FALSE))
     {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-        memset(&now, 0, sizeof(struct timespec));
-        while ((getTimespecDiffMs(start, now) < TIMESTAMP_PRINT_DELAY_MS) &&
-               (timestamp_thread_exit == FALSE))
+        usleep(US_TO_MS(50U));
+        if (client_started_sending == TRUE)
         {
-            usleep(US_TO_MS(250U));
-            clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+            clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+            memset(&now, 0, sizeof(struct timespec));
+            while ((getTimespecDiffMs(start, now) < TIMESTAMP_PRINT_DELAY_MS) &&
+                (timestamp_thread_exit == FALSE))
+            {
+                usleep(US_TO_MS(250U));
+                clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+            }
+
+            clock_gettime(CLOCK_REALTIME, &realtime);
+            memset(&realtime_tm, 0, sizeof(struct tm));
+            strftime(&timestamp[10], sizeof(timestamp), "%y/%m/%d %H:%M:%S", gmtime(&realtime.tv_sec)); /* year, month, day, hour (in 24 hour format) minute and second */
+    #ifdef DEBUG_ON
+            printf("%s\n", timestamp);
+    #endif /* DEBUG_ON */
+
+            /* ------------- ENTER CRITICAL SECTION -------------- */
+            pthread_mutex_lock(&file_mutex);
+
+            if ((fstream = fopen((char*)SOCKET_DATA_FILEPATH, "a")) == NULL)
+            {
+                printf("fstream: %s\n", strerror(errno));
+            }
+
+            /* Copy bytes from buf to file stream */
+            if (fwrite(timestamp, sizeof(char), sizeof(timestamp), fstream) == 0)
+            {
+                printf("ERROR: Nothing is written to %s", SOCKET_DATA_FILEPATH);
+            }
+
+            fwrite("\n", sizeof(char), 1, fstream);
+
+            /* Free memory */
+            fflush(fstream);
+            fclose(fstream);
+            pthread_mutex_unlock(&file_mutex);
+            /* ------------- EXIT CRITICAL SECTION -------------- */
         }
-
-        clock_gettime(CLOCK_REALTIME, &realtime);
-        memset(&realtime_tm, 0, sizeof(struct tm));
-        strftime(&timestamp[10], sizeof(timestamp), "%y/%m/%d %H:%M:%S", gmtime(&realtime.tv_sec)); /* year, month, day, hour (in 24 hour format) minute and second */
-#ifdef DEBUG_ON
-        printf("%s\n", timestamp);
-#endif /* DEBUG_ON */
-
-        /* ------------- ENTER CRITICAL SECTION -------------- */
-        pthread_mutex_lock(&file_mutex);
-
-        if ((fstream = fopen((char*)SOCKET_DATA_FILEPATH, "a")) == NULL)
-        {
-            printf("fstream: %s\n", strerror(errno));
-        }
-
-        /* Copy bytes from buf to file stream */
-        if (fwrite(timestamp, sizeof(char), sizeof(timestamp), fstream) == 0)
-        {
-            printf("ERROR: Nothing is written to %s", SOCKET_DATA_FILEPATH);
-        }
-
-        fwrite("\n", sizeof(char), 1, fstream);
-
-        /* Free memory */
-        fflush(fstream);
-        fclose(fstream);
-        pthread_mutex_unlock(&file_mutex);
-        /* ------------- EXIT CRITICAL SECTION -------------- */
-    }   
+    }
 }
 
 /**
