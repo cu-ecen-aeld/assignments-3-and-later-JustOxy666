@@ -94,7 +94,9 @@ U16 getTimespecDiffMs(struct timespec t1, struct timespec t2);
 
 void signalHandler(int signal_number)
 {
+#ifdef DEBUG_ON
     printf("caught signal %d\n", signal_number);
+#endif /* DEBUG_ON */
     syslog(LOG_INFO, "Caught signal, exiting");
     teardown();
 }
@@ -105,7 +107,9 @@ void parse_args(int argc, char** argv)
     {
         if (strcmp(argv[1], DAEMON_ARG) == 0)
         {
+#ifdef DEBUG_ON           
             printf("Running in daemon mode\n");
+#endif /* DEBUG_ON */
             is_daemon = TRUE;
         }
         else
@@ -251,14 +255,18 @@ void printClientIpAddress(Boolean open_connection, task_params* t_arg)
     if (open_connection == TRUE)
     {
         t_arg->client_ip = inet_ntoa(sock_addr->sin_addr);
+#ifdef DEBUG_ON
         printf("Accepted connection from %s\n", t_arg->client_ip);
+#endif /* DEBUG_ON */
         syslog(LOG_INFO, "Accepted connection from %s", t_arg->client_ip);
     }
     else
     {
         if ((t_arg->client_ip) != NULL)
         {
+#ifdef DEBUG_ON
             printf("Closed connection from %s\n", t_arg->client_ip);
+#endif /* DEBUG_ON */
             syslog(LOG_INFO, "Closed connection from %s", t_arg->client_ip);
         }
     }
