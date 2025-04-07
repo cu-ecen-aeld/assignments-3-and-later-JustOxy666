@@ -60,3 +60,6 @@ Oops message structure and explanation of each point.
    * The error happened in the `faulty_write` function
 * Other Information
    * The stack trace shows that the failure occurred during a write operation (`ksys_write`), which then propagated  through system calls (`__arm64_sys_write`).
+
+## Fix
+When checking `faulty_write` in `misc_modules/faulty.c` it's clear that line #53 `*(int *)0 = 0;` tries to dereference zero address. This line needs to rewritten so incoming data is written to correct address.
