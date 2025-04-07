@@ -51,12 +51,12 @@ Code: d2800001 d2800000 d503233f d50323bf (b900003f)
 ## Breakdown
 Oops message structure and explanation of each point.
 * Description
-   The very first line summarizes the error:
-   `Unable to handle kernel NULL pointer dereference at virtual address 0000000000000000`.
-   Kernel module tried to access data at address zero.
+   * The very first line summarizes the error:
+     `Unable to handle kernel NULL pointer dereference at virtual address 0000000000000000`.
+     Kernel module tried to access data at address zero.
 * Memory Abort Info
-   The memory access that caused the issue was a data abort (`DABT`), and it occurred during the translation of the virtual  address (`FSC = 0x05: level 1 translation fault`), meaning there was an error in translating the virtual memory address to physical memory.
+   * The memory access that caused the issue was a data abort (`DABT`), and it occurred during the translation of the   virtual  address (`FSC = 0x05: level 1 translation fault`), meaning there was an error in translating the virtual    memory address to physical memory.
 * Call Trace
-   The error happened in the `faulty_write` function
+   * The error happened in the `faulty_write` function
 * Other Information
-   The stack trace shows that the failure occurred during a write operation (`ksys_write`), which then propagated through system calls (`__arm64_sys_write`).
+   * The stack trace shows that the failure occurred during a write operation (`ksys_write`), which then propagated  through system calls (`__arm64_sys_write`).
