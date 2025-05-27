@@ -18,10 +18,12 @@
 #include <linux/cdev.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
+#include "aesd-circular-buffer.h"
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 
-MODULE_AUTHOR("Your Name Here"); /** TODO: fill in your name **/
+
+MODULE_AUTHOR("JustOxy666");
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;

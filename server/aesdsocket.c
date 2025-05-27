@@ -13,6 +13,10 @@
 #include <pthread.h>
 #include <time.h>
 
+#ifndef USE_AESD_CHAR_DEVICE
+#define USE_AESD_CHAR_DEVICE (0)
+#endif /* USE_AESD_CHAR_DEVICE */
+
 /* ------------------------------------------------------------------------------- */
 /* typedef */
 
@@ -31,11 +35,16 @@ typedef unsigned long long U64;
 #define TIMESPEC_TO_S(a,b)  ((U16)(a + (U16)(b / 1000000000U)))
 
 /* ------------------------------------------------------------------------------- */
+#if USE_AESD_CHAR_DEVICE == 0
+#define SOCKET_DATA_FILEPATH        ("/var/tmp/aesdsocketdata")
+#else /* USE_AESD_CHAR_DEVICE == 1 */
+#define SOCKET_DATA_FILEPATH        ("/dev/aesdchar")
+#endif /* USE_AESD_CHAR_DEVICE == 0 */
+
 #define _XOPEN_SOURCE               (700)
 #define SOCKET_DOMAIN               (PF_INET)
 #define SOCKET_TYPE                 (SOCK_STREAM)
 #define DAEMON_ARG                  ("-d")
-#define SOCKET_DATA_FILEPATH        ("/var/tmp/aesdsocketdata")
 #define SOCKET_PORT                 ("9000")
 #define SOCKET_INC_CONNECT_MAX      (50U)
 #define DATA_BLOCK_SIZE             (512U)
@@ -234,12 +243,13 @@ void teardown(void)
         printClientIpAddress(FALSE, &t_params[i]);
         pthread_join(threads[i], NULL);
     }
-
+#if USE_AESD_CHAR_DEVICE == 0
     if (remove(SOCKET_DATA_FILEPATH) == FAIL)
     {
         printf("remove: %s\n", strerror(errno));
     }
-    
+#endif /* USE_AESD_CHAR_DEVICE == 0 */
+
     freeaddrinfo(servinfo);
     pthread_mutex_destroy(&file_mutex);
 }
@@ -514,7 +524,10 @@ int main(int argc, char** argv)
 
     /* Setup things and get socket file descriptor */
     setup();
+
+#if USE_AESD_CHAR_DEVICE == 0
     pthread_create(&threads[0], NULL, (void*)&timestamp_task, NULL);
+#endif /* USE_AESD_CHAR_DEVICE == 0 */
 
     while(1)
     {
