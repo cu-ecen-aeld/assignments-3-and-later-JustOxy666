@@ -54,16 +54,17 @@ int aesd_release(struct inode *inode, struct file *filp)
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
+    uint8_t index = 0U;
     ssize_t retval = 0;
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle read
      */
-    for (int i = 0; i < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; i++)
+    for (index = 0; i < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
-        if (aesd_device.circ_buffer.entry[i].buffptr != NULL)
+        if (aesd_device.circ_buffer.entry[index].buffptr != NULL)
         {
-            memcpy(buf, aesd_device.circ_buffer.entry[i].buffptr, aesd_device.circ_buffer.entry[i].size);
+            memcpy(buf, aesd_device.circ_buffer.entry[index].buffptr, aesd_device.circ_buffer.entry[index].size);
         }
     }
     return retval;
@@ -78,10 +79,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     /**
      * TODO: handle write
      */
-    new_entry = {
-        .buffptr = NULL,
-        .size = count
-    };
+    new_entry.buffptr = NULL;
+    new_entry.size = count;
 
     if (count != 0)
     {
@@ -168,12 +167,12 @@ void aesd_cleanup_module(void)
      * TODO: cleanup AESD specific poritions here as necessary
      */
     mutex_destroy(&aesd_device.mutex_lock);
-    AESD_CIRCULAR_BUFFER_FOREACH(aesd_device.circ_buffer.entry, &aesd_device.circ_buffer, index)
+    for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
-        if (aesd_device.circ_buffer.entry->buffptr != NULL)
+        if (aesd_device.circ_buffer.entry[index].buffptr != NULL)
         {
-            kfree((void *)aesd_device.circ_buffer.entry->buffptr);
-            aesd_device.circ_buffer.entry->buffptr = NULL;
+            kfree((void *)aesd_device.circ_buffer.entry[index].buffptr);
+            aesd_device.circ_buffer.entry[index].buffptr = NULL;
         }
     }
 
