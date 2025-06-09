@@ -18,7 +18,7 @@
 #include <linux/cdev.h>
 #include <linux/gfp.h>  /* kmalloc flags */
 #include <linux/slab.h>  /* kmalloc */
-#inlude <linux/mutex.h> /* mutex */
+#include <linux/mutex.h> /* mutex */
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
 #include "aesd-circular-buffer.h"
@@ -72,12 +72,13 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
+    struct aesd_buffer_entry new_entry;
     ssize_t retval = 0;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     /**
      * TODO: handle write
      */
-    struct aesd_buffer_entry new_entry = {
+    new_entry = {
         .buffptr = NULL,
         .size = count
     };
@@ -166,13 +167,13 @@ void aesd_cleanup_module(void)
     /**
      * TODO: cleanup AESD specific poritions here as necessary
      */
-    mutextx_destroy(&aesd_device.mutex_lock);
+    mutex_destroy(&aesd_device.mutex_lock);
     AESD_CIRCULAR_BUFFER_FOREACH(aesd_device.circ_buffer.entry, &aesd_device.circ_buffer, index)
     {
-        if (entry->buffptr != NULL)
+        if (aesd_device.circ_buffer.entry->buffptr != NULL)
         {
-            kfree((void *)entry->buffptr);
-            entry->buffptr = NULL;
+            kfree((void *)aesd_device.circ_buffer.entry->buffptr);
+            aesd_device.circ_buffer.entry->buffptr = NULL;
         }
     }
 
