@@ -31,6 +31,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
 
+
 int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
@@ -41,6 +42,7 @@ int aesd_open(struct inode *inode, struct file *filp)
     return 0;
 }
 
+
 int aesd_release(struct inode *inode, struct file *filp)
 {
     PDEBUG("release");
@@ -50,6 +52,7 @@ int aesd_release(struct inode *inode, struct file *filp)
      */
     return 0;
 }
+
 
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
@@ -70,40 +73,43 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     return retval;
 }
 
+
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-    struct aesd_buffer_entry new_entry;
+    struct aesd_buffer_entry *new_entry;
     ssize_t retval = 0;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     PDEBUG("buf = %s", buf);
     /**
      * TODO: handle write
      */
-    new_entry.buffptr = NULL;
-    new_entry.size = count;
+    new_entry->buffptr = NULL;
+    new_entry->size = count;
 
-    // if (count != 0)
-    // {
-    //     new_entry.buffptr = kmalloc(count, GFP_KERNEL);
-    //     if (new_entry.buffptr <= 0)
-    //     {
-    //         retval = -ENOMEM;
-    //         PDEBUG("kmalloc failed");
-    //     }
-    //     else
-    //     {
-    //         memcpy(new_entry.buffptr, buf, count);
-    //         aesd_circular_buffer_add_entry(&aesd_device.circ_buffer, &new_entry);
-    //     }
-    // }
-    // else
-    // {
-    //     PDEBUG("write called with zero count, nothing to do");
-    // }
+    if (count != 0)
+    {
+        new_entry->buffptr = kmalloc(count, GFP_KERNEL);
+        if (new_entry->buffptr <= 0)
+        {
+            retval = -ENOMEM;
+            PDEBUG("kmalloc failed");
+        }
+        else
+        {
+            memcpy(new_entry->buffptr, buf, count);
+            aesd_circular_buffer_add_entry(aesd_device->circ_buffer, new_entry);
+        }
+    }
+    else
+    {
+        PDEBUG("write called with zero count, nothing to do");
+    }
     
     return retval;
 }
+
+
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
     .read =     aesd_read,
@@ -111,6 +117,7 @@ struct file_operations aesd_fops = {
     .open =     aesd_open,
     .release =  aesd_release,
 };
+
 
 static int aesd_setup_cdev(struct aesd_dev *dev)
 {
@@ -125,7 +132,6 @@ static int aesd_setup_cdev(struct aesd_dev *dev)
     }
     return err;
 }
-
 
 
 int aesd_init_module(void)
@@ -144,8 +150,8 @@ int aesd_init_module(void)
     /**
      * TODO: initialize the AESD specific portion of the device
      */
-
-    aesd_circular_buffer_init(&aesd_device.circ_buffer);
+    aesd_device->circ_buffer = kmalloc(sizeof(aesd_device.circ_buffer), GFP_KERNEL);
+    aesd_circular_buffer_init(&aesd_device->circ_buffer);
     mutex_init(&aesd_device.mutex_lock);
 
     result = aesd_setup_cdev(&aesd_device);
@@ -157,6 +163,7 @@ int aesd_init_module(void)
     return result;
 
 }
+
 
 void aesd_cleanup_module(void)
 {
@@ -178,9 +185,10 @@ void aesd_cleanup_module(void)
         }
     }
 
+    kfree(aesd_device.circ_buffer);
+
     unregister_chrdev_region(devno, 1);
 }
-
 
 
 module_init(aesd_init_module);
