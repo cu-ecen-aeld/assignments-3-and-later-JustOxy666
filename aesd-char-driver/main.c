@@ -98,7 +98,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         else
         {
             memcpy(new_entry->buffptr, buf, count);
-            aesd_circular_buffer_add_entry(aesd_device->circ_buffer, new_entry);
+            aesd_circular_buffer_add_entry(aesd_device.circ_buffer, new_entry);
         }
     }
     else
@@ -150,8 +150,8 @@ int aesd_init_module(void)
     /**
      * TODO: initialize the AESD specific portion of the device
      */
-    aesd_device->circ_buffer = kmalloc(sizeof(aesd_device.circ_buffer), GFP_KERNEL);
-    aesd_circular_buffer_init(&aesd_device->circ_buffer);
+    aesd_device.circ_buffer = kmalloc(sizeof(aesd_device.circ_buffer), GFP_KERNEL);
+    aesd_circular_buffer_init(&aesd_device.circ_buffer);
     mutex_init(&aesd_device.mutex_lock);
 
     result = aesd_setup_cdev(&aesd_device);
