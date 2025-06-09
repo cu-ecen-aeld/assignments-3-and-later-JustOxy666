@@ -65,9 +65,9 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
      */
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
-        if (aesd_device.circ_buffer.entry[index].buffptr != NULL)
+        if (aesd_device.circ_buffer->entry[index].buffptr != NULL)
         {
-            memcpy(buf, aesd_device.circ_buffer.entry[index].buffptr, aesd_device.circ_buffer.entry[index].size);
+            memcpy(buf, aesd_device.circ_buffer->entry[index].buffptr, aesd_device.circ_buffer->entry[index].size);
         }
     }
     return retval;
@@ -178,10 +178,10 @@ void aesd_cleanup_module(void)
     mutex_destroy(&aesd_device.mutex_lock);
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
-        if (aesd_device.circ_buffer.entry[index].buffptr != NULL)
+        if (aesd_device.circ_buffer->entry[index].buffptr != NULL)
         {
-            kfree((void *)aesd_device.circ_buffer.entry[index].buffptr);
-            aesd_device.circ_buffer.entry[index].buffptr = NULL;
+            kfree((void *)aesd_device.circ_buffer->entry[index].buffptr);
+            aesd_device.circ_buffer->entry[index].buffptr = NULL;
         }
     }
 
