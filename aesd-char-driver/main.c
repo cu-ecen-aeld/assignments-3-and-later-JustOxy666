@@ -85,11 +85,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
      * TODO: handle write
      */
     new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
-    new_entry->size = count;
+    memcpy(new_entry->size, count, sizeof(count));
 
     if (count != 0)
     {
-        new_entry->buffptr = kmalloc(count, GFP_KERNEL);
+        new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
         if (new_entry->buffptr <= 0)
         {
             retval = -ENOMEM;
