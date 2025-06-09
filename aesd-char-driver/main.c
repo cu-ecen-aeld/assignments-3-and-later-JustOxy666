@@ -80,17 +80,18 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     struct aesd_buffer_entry *new_entry;
     ssize_t retval = 0;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
-    PDEBUG("buf = %s", buf);
+    // PDEBUG("buf = %s", buf);
     /**
      * TODO: handle write
      */
     new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
-    if (new_entry->size <= 0)
+    if (!new_entry->size)
     {
         retval = -ENOMEM;
         PDEBUG("kmalloc failed for new_entry->size");
         goto out;
     }
+
     memcpy(new_entry->size, count, sizeof(count));
 
     // if (count != 0)
