@@ -85,27 +85,35 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
      * TODO: handle write
      */
     new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
+    if (new_entry->size <= 0)
+    {
+        retval = -ENOMEM;
+        PDEBUG("kmalloc failed for new_entry->size");
+        goto out;
+    }
     memcpy(new_entry->size, count, sizeof(count));
 
-    if (count != 0)
-    {
-        new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
-        if (new_entry->buffptr <= 0)
-        {
-            retval = -ENOMEM;
-            PDEBUG("kmalloc failed");
-        }
-        else
-        {
-            memcpy(new_entry->buffptr, buf, count);
-            aesd_circular_buffer_add_entry(aesd_device.circ_buffer, new_entry);
-        }
-    }
-    else
-    {
-        PDEBUG("write called with zero count, nothing to do");
-    }
+    // if (count != 0)
+    // {
+    //     new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
+    //     if (new_entry->buffptr <= 0)
+    //     {
+    //         retval = -ENOMEM;
+    //         PDEBUG("kmalloc failed for new_entry->buffptr");
+                // goto out;
+    //     }
+    //     else
+    //     {
+    //         memcpy(new_entry->buffptr, buf, count);
+    //         aesd_circular_buffer_add_entry(aesd_device.circ_buffer, new_entry);
+    //     }
+    // }
+    // else
+    // {
+    //     PDEBUG("write called with zero count, nothing to do");
+    // }
     
+    out:
     return retval;
 }
 
