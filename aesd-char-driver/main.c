@@ -60,7 +60,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     /**
      * TODO: handle read
      */
-    for (index = 0; i < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
+    for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
         if (aesd_device.circ_buffer.entry[index].buffptr != NULL)
         {
