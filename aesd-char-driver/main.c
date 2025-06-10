@@ -84,15 +84,15 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     /**
      * TODO: handle write
      */
-    new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
-    if (!new_entry->size)
-    {
-        retval = -ENOMEM;
-        PDEBUG("kmalloc failed for new_entry->size");
-        goto out;
-    }
+    // new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
+    // if (!new_entry->size)
+    // {
+    //     retval = -ENOMEM;
+    //     PDEBUG("kmalloc failed for new_entry->size");
+    //     goto out;
+    // }
 
-    memcpy(new_entry->size, count, sizeof(count));
+    // memcpy(new_entry->size, count, sizeof(count));
 
     // if (count != 0)
     // {
