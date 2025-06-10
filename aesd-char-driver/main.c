@@ -160,8 +160,8 @@ int aesd_init_module(void)
      * TODO: initialize the AESD specific portion of the device
      */
     aesd_device.circ_buffer = kmalloc(sizeof(aesd_device.circ_buffer), GFP_KERNEL);
-    aesd_circular_buffer_init(&aesd_device.circ_buffer);
-    mutex_init(aesd_device.mutex_lock);
+    aesd_circular_buffer_init(aesd_device.circ_buffer);
+    mutex_init(&aesd_device.mutex_lock);
 
     result = aesd_setup_cdev(&aesd_device);
 
