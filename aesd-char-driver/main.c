@@ -34,8 +34,12 @@ struct aesd_dev aesd_device;
 
 int aesd_open(struct inode *inode, struct file *filp)
 {
+    struct aesd_dev *dev;
+    dev = container_of(inode->i_cdev, struct aesd_dev, cdev);
+    filp->private_data = dev;
+
     PDEBUG("open");
-    mutex_lock(&aesd_device.mutex_lock);
+
     /**
      * TODO: handle open
      */
@@ -46,7 +50,6 @@ int aesd_open(struct inode *inode, struct file *filp)
 int aesd_release(struct inode *inode, struct file *filp)
 {
     PDEBUG("release");
-    mutex_unlock(&aesd_device.mutex_lock);
     /**
      * TODO: handle release
      */
@@ -59,17 +62,23 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 {
     uint8_t index = 0U;
     ssize_t retval = 0;
+    struct aesd_dev *dev;
+
+    dev = filp->private_data;
+    mutex_lock(&dev->mutex_lock);
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
+    for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
+    {
+        if (dev->circ_buffer->entry[index].buffptr != NULL)
+        {
+            copy_to_user(buf, dev->circ_buffer->entry[index].buffptr, aesd_device.circ_buffer->entry[index].size);
+        }
+    }
+    mutex_unlock(&dev->mutex_lock);
     /**
      * TODO: handle read
      */
-    for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
-    {
-        if (aesd_device.circ_buffer->entry[index].buffptr != NULL)
-        {
-            copy_to_user(buf, aesd_device.circ_buffer->entry[index].buffptr, aesd_device.circ_buffer->entry[index].size);
-        }
-    }
+    
     return retval;
 }
 
@@ -77,9 +86,16 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-    struct aesd_buffer_entry *new_entry;
     ssize_t retval = 0;
+    struct aesd_dev *dev;
+    struct aesd_buffer_entry *new_entry;
+
+    dev = filp->private_data;
+    mutex_lock(&dev->mutex_lock);
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
+
+    mutex_unlock(&dev->mutex_lock);
+
     // PDEBUG("buf = %s", buf);
     /**
      * TODO: handle write
