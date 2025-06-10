@@ -103,7 +103,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
      * TODO: handle read
      */
     
-    out;
+    out:
     return retval;
 }
 
@@ -154,7 +154,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         }
         else
         {
-            memset(new_entry->buffptr, 0, sizeof(buf) * count);
             if (copy_from_user((const char*)new_entry->buffptr, buf, count))
             {
                 retval = -EFAULT;
