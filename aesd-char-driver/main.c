@@ -114,7 +114,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         PDEBUG("kmalloc failed for new_entry");
         goto unlock;
     }
-    
+
     new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
     if (!new_entry->size)
     {
@@ -123,6 +123,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto unlock;
     }
 
+    memset(new_entry->size, 0, sizeof(count));
     if (copy_from_user(new_entry->size, count, sizeof(count)))
     {
         retval = -EFAULT;
@@ -143,6 +144,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         }
         else
         {
+            memset(new_entry->buffptr, 0, sizeof(buf) * count);
             if (copy_from_user(new_entry->buffptr, buf, count))
             {
                 retval = -EFAULT;
