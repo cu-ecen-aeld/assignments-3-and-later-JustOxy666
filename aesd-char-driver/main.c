@@ -65,7 +65,8 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     struct aesd_dev *dev;
 
     dev = filp->private_data;
-    mutex_lock(&dev->mutex_lock);
+    if (mutex_lock_interruptible(&dev->mutex_lock))
+		return -ERESTARTSYS;
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
@@ -91,7 +92,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     struct aesd_buffer_entry *new_entry;
 
     dev = filp->private_data;
-    mutex_lock(&dev->mutex_lock);
+    if (mutex_lock_interruptible(&dev->mutex_lock))
+		return -ERESTARTSYS;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
 
     mutex_unlock(&dev->mutex_lock);
@@ -170,6 +172,14 @@ int aesd_init_module(void)
         printk(KERN_WARNING "Can't get major %d\n", aesd_major);
         return result;
     }
+
+    aesd_device = kmalloc(sizeof(struct aesd_dev), GFP_KERNEL);
+    if (!aesd_device) {
+        result = -ENOMEM;
+        printk(KERN_ERR "kmalloc failed for aesd_device");
+        goto fail;
+    }
+
     memset(&aesd_device,0,sizeof(struct aesd_dev));
 
     /**
@@ -187,6 +197,9 @@ int aesd_init_module(void)
     }
     return result;
 
+    fail:
+       aesd_cleanup_module();
+       return result;
 }
 
 
@@ -195,6 +208,7 @@ void aesd_cleanup_module(void)
     uint8_t index = 0U;
     dev_t devno = MKDEV(aesd_major, aesd_minor);
 
+    PDEBUG("cleanup module");
     cdev_del(&aesd_device.cdev);
 
     /**
@@ -211,6 +225,7 @@ void aesd_cleanup_module(void)
     }
 
     kfree(aesd_device.circ_buffer);
+    kfree(aesd_device);
 
     unregister_chrdev_region(devno, 1);
 }
