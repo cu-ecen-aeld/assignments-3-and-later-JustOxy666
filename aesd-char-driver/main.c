@@ -36,9 +36,8 @@ void aesd_cleanup_module(void);
 
 int aesd_open(struct inode *inode, struct file *filp)
 {
-    struct aesd_dev *dev;
-    dev = container_of(inode->i_cdev, struct aesd_dev, cdev);
-    filp->private_data = dev;
+    aesd_device = container_of(inode->i_cdev, struct aesd_dev, cdev);
+    filp->private_data = aesd_device;
 
     PDEBUG("open");
 
@@ -66,18 +65,20 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     ssize_t retval = 0;
     struct aesd_dev *dev;
 
-    dev = filp->private_data;
-    if (mutex_lock_interruptible(&dev->mutex_lock))
+    aesd_device = filp->private_data;
+    if (mutex_lock_interruptible(&aesd_device->mutex_lock))
 		return -ERESTARTSYS;
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
-        if (dev->circ_buffer->entry[index].buffptr != NULL)
+        if (aesd_device->circ_buffer->entry[index].buffptr != NULL)
         {
-            copy_to_user(buf, dev->circ_buffer->entry[index].buffptr, dev->circ_buffer->entry[index].size);
+            copy_to_user(buf,
+                         aesd_device->circ_buffer->entry[index].buffptr,
+                         aesd_device->circ_buffer->entry[index].size);
         }
     }
-    mutex_unlock(&dev->mutex_lock);
+    mutex_unlock(&aesd_device->mutex_lock);
     /**
      * TODO: handle read
      */
@@ -90,15 +91,14 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = 0;
-    struct aesd_dev *dev;
     struct aesd_buffer_entry *new_entry;
 
-    dev = filp->private_data;
-    if (mutex_lock_interruptible(&dev->mutex_lock))
+    aesd_device = filp->private_data;
+    if (mutex_lock_interruptible(&aesd_device->mutex_lock))
 		return -ERESTARTSYS;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
 
-    mutex_unlock(&dev->mutex_lock);
+    mutex_unlock(&aesd_device->mutex_lock);
 
     // PDEBUG("buf = %s", buf);
     /**
@@ -167,6 +167,8 @@ int aesd_init_module(void)
 {
     dev_t dev = 0;
     int result;
+
+    PDEBUG("aesdchar module init");
     result = alloc_chrdev_region(&dev, aesd_minor, 1,
             "aesdchar");
     aesd_major = MAJOR(dev);
@@ -187,9 +189,9 @@ int aesd_init_module(void)
     /**
      * TODO: initialize the AESD specific portion of the device
      */
-    
+
     // aesd_device->circ_buffer = kmalloc(sizeof(aesd_device->circ_buffer), GFP_KERNEL);
-    // aesd_circular_buffer_init(aesd_device->circ_buffer);
+    aesd_circular_buffer_init(aesd_device->circ_buffer);
     mutex_init(&aesd_device->mutex_lock);
 
     result = aesd_setup_cdev(aesd_device);
