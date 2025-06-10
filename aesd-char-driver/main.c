@@ -53,6 +53,10 @@ int aesd_open(struct inode *inode, struct file *filp)
 int aesd_release(struct inode *inode, struct file *filp)
 {
     PDEBUG("release");
+    struct aesd_dev *dev;
+
+    dev = container_of(inode->i_cdev, struct aesd_dev, cdev);
+    // filp->private_data = NULL;
     /**
      * TODO: handle release
      */
@@ -65,26 +69,36 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 {
     uint8_t index = 0U;
     ssize_t retval = 0;
+    uint16_t read_bytes = 0;
     struct aesd_dev *dev;
 
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     dev = filp->private_data;
-    if (mutex_lock_interruptible(&dev->mutex_lock))
-		return -ERESTARTSYS;
+    // if (mutex_lock_interruptible(&dev->mutex_lock))
+    // {
+	// 	retval = -ERESTARTSYS;
+    //     goto out;
+    // }
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
         if (dev->circ_buffer->entry[index].buffptr != NULL)
         {
-            copy_to_user(buf,
+            copy_to_user(&buf[read_bytes],
                          dev->circ_buffer->entry[index].buffptr,
                          dev->circ_buffer->entry[index].size);
+            read_bytes += dev->circ_buffer->entry[index].size;
         }
     }
-    mutex_unlock(&dev->mutex_lock);
+
+    retval = read_bytes;
+    PDEBUG("read %zu bytes from circular buffer", read_bytes);
+
+    // mutex_unlock(&dev->mutex_lock);
     /**
      * TODO: handle read
      */
     
+    out;
     return retval;
 }
 
