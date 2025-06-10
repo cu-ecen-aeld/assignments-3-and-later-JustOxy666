@@ -104,19 +104,34 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto out;
     }
 
-
     /**
      * TODO: handle write
      */
+    new_entry = kmalloc(sizeof(struct aesd_buffer_entry), GFP_KERNEL);
+    if (!new_entry)
+    {
+        retval = -ENOMEM;
+        PDEBUG("kmalloc failed for new_entry");
+        goto unlock;
+    }
+    
     new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
     if (!new_entry->size)
     {
         retval = -ENOMEM;
         PDEBUG("kmalloc failed for new_entry->size");
+        goto unlock;
+    }
+
+    if (copy_from_user(new_entry->size, count, sizeof(count)))
+    {
+        retval = -EFAULT;
+        PDEBUG("copy_from_user failed for new_entry->size");
+        kfree(new_entry->size);
+        new_entry->size = NULL;
         goto out;
     }
 
-    copy_from_user(new_entry->size, count, sizeof(count));
     if (count != 0)
     {
         new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
@@ -128,14 +143,26 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         }
         else
         {
-            copy_from_user(new_entry->buffptr, buf, count);
+            if (copy_from_user(new_entry->buffptr, buf, count))
+            {
+                retval = -EFAULT;
+                PDEBUG("copy_from_user failed for new_entry->buffptr");
+                kfree(new_entry->buffptr);
+                new_entry->buffptr = NULL;
+                goto unlock;
+            }
+
             aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry);
+            retval = count;
+            PDEBUG("write added %zu bytes to circular buffer", count);
         }
     }
     else
     {
         PDEBUG("write called with zero count, nothing to do");
     }
+
+    unlock:
     mutex_unlock(&dev->mutex_lock);
     
     out:
