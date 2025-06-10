@@ -67,10 +67,10 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     ssize_t retval = 0;
     struct aesd_dev *dev;
 
+    PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     dev = filp->private_data;
     if (mutex_lock_interruptible(&dev->mutex_lock))
 		return -ERESTARTSYS;
-    PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
         if (dev->circ_buffer->entry[index].buffptr != NULL)
@@ -94,48 +94,49 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 {
     ssize_t retval = 0;
     struct aesd_dev *dev;
-    // struct aesd_buffer_entry *new_entry;
+    struct aesd_buffer_entry *new_entry;
 
+    PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     dev = filp->private_data;
     if (mutex_lock_interruptible(&dev->mutex_lock))
-		return -ERESTARTSYS;
-    PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
+    {
+		retval -ERESTARTSYS;
+        goto out;
+    }
 
-    mutex_unlock(&dev->mutex_lock);
 
-    // PDEBUG("buf = %s", buf);
     /**
      * TODO: handle write
      */
-    // new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
-    // if (!new_entry->size)
-    // {
-    //     retval = -ENOMEM;
-    //     PDEBUG("kmalloc failed for new_entry->size");
-    //     goto out;
-    // }
+    new_entry->size = kmalloc(sizeof(count), GFP_KERNEL);
+    if (!new_entry->size)
+    {
+        retval = -ENOMEM;
+        PDEBUG("kmalloc failed for new_entry->size");
+        goto out;
+    }
 
-    // copy_from_user(new_entry->size, count, sizeof(count));
-
-    // if (count != 0)
-    // {
-    //     new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
-    //     if (new_entry->buffptr <= 0)
-    //     {
-    //         retval = -ENOMEM;
-    //         PDEBUG("kmalloc failed for new_entry->buffptr");
-                // goto out;
-    //     }
-    //     else
-    //     {
-    //         copy_from_user(new_entry->buffptr, buf, count);
-    //         aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry);
-    //     }
-    // }
-    // else
-    // {
-    //     PDEBUG("write called with zero count, nothing to do");
-    // }
+    copy_from_user(new_entry->size, count, sizeof(count));
+    if (count != 0)
+    {
+        new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
+        if (new_entry->buffptr <= 0)
+        {
+            retval = -ENOMEM;
+            PDEBUG("kmalloc failed for new_entry->buffptr");
+                goto out;
+        }
+        else
+        {
+            copy_from_user(new_entry->buffptr, buf, count);
+            aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry);
+        }
+    }
+    else
+    {
+        PDEBUG("write called with zero count, nothing to do");
+    }
+    mutex_unlock(&dev->mutex_lock);
     
     out:
     return retval;
