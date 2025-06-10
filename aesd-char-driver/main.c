@@ -67,7 +67,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     {
         if (aesd_device.circ_buffer->entry[index].buffptr != NULL)
         {
-            memcpy(buf, aesd_device.circ_buffer->entry[index].buffptr, aesd_device.circ_buffer->entry[index].size);
+            copy_to_user(buf, aesd_device.circ_buffer->entry[index].buffptr, aesd_device.circ_buffer->entry[index].size);
         }
     }
     return retval;
@@ -92,7 +92,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     //     goto out;
     // }
 
-    // memcpy(new_entry->size, count, sizeof(count));
+    // copy_from_user(new_entry->size, count, sizeof(count));
 
     // if (count != 0)
     // {
@@ -105,7 +105,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     //     }
     //     else
     //     {
-    //         memcpy(new_entry->buffptr, buf, count);
+    //         copy_from_user(new_entry->buffptr, buf, count);
     //         aesd_circular_buffer_add_entry(aesd_device.circ_buffer, new_entry);
     //     }
     // }
@@ -160,8 +160,8 @@ int aesd_init_module(void)
      * TODO: initialize the AESD specific portion of the device
      */
     aesd_device.circ_buffer = kmalloc(sizeof(aesd_device.circ_buffer), GFP_KERNEL);
-    aesd_circular_buffer_init(aesd_device.circ_buffer);
-    mutex_init(&aesd_device.mutex_lock);
+    aesd_circular_buffer_init(&aesd_device.circ_buffer);
+    mutex_init(aesd_device.mutex_lock);
 
     result = aesd_setup_cdev(&aesd_device);
 
@@ -189,7 +189,7 @@ void aesd_cleanup_module(void)
     {
         if (aesd_device.circ_buffer->entry[index].buffptr != NULL)
         {
-            kfree((void *)aesd_device.circ_buffer->entry[index].buffptr);
+            kfree(aesd_device.circ_buffer->entry[index].buffptr);
             aesd_device.circ_buffer->entry[index].buffptr = NULL;
         }
     }
