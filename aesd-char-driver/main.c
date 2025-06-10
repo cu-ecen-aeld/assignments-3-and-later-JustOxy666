@@ -29,7 +29,9 @@ int aesd_minor =   0;
 MODULE_AUTHOR("JustOxy666");
 MODULE_LICENSE("Dual BSD/GPL");
 
-struct aesd_dev aesd_device;
+struct aesd_dev *aesd_device;
+
+void aesd_cleanup_module(void);
 
 
 int aesd_open(struct inode *inode, struct file *filp)
@@ -72,7 +74,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     {
         if (dev->circ_buffer->entry[index].buffptr != NULL)
         {
-            copy_to_user(buf, dev->circ_buffer->entry[index].buffptr, aesd_device.circ_buffer->entry[index].size);
+            copy_to_user(buf, dev->circ_buffer->entry[index].buffptr, dev->circ_buffer->entry[index].size);
         }
     }
     mutex_unlock(&dev->mutex_lock);
@@ -124,7 +126,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     //     else
     //     {
     //         copy_from_user(new_entry->buffptr, buf, count);
-    //         aesd_circular_buffer_add_entry(aesd_device.circ_buffer, new_entry);
+    //         aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry);
     //     }
     // }
     // else
@@ -180,16 +182,16 @@ int aesd_init_module(void)
         goto fail;
     }
 
-    memset(&aesd_device,0,sizeof(struct aesd_dev));
+    memset(aesd_device,0,sizeof(struct aesd_dev));
 
     /**
      * TODO: initialize the AESD specific portion of the device
      */
-    aesd_device.circ_buffer = kmalloc(sizeof(aesd_device.circ_buffer), GFP_KERNEL);
-    aesd_circular_buffer_init(aesd_device.circ_buffer);
-    mutex_init(&aesd_device.mutex_lock);
+    aesd_device->circ_buffer = kmalloc(sizeof(aesd_device->circ_buffer), GFP_KERNEL);
+    aesd_circular_buffer_init(aesd_device->circ_buffer);
+    mutex_init(&aesd_device->mutex_lock);
 
-    result = aesd_setup_cdev(&aesd_device);
+    result = aesd_setup_cdev(aesd_device);
 
     if( result )
     {
@@ -209,22 +211,22 @@ void aesd_cleanup_module(void)
     dev_t devno = MKDEV(aesd_major, aesd_minor);
 
     PDEBUG("cleanup module");
-    cdev_del(&aesd_device.cdev);
+    cdev_del(&aesd_device->cdev);
 
     /**
      * TODO: cleanup AESD specific poritions here as necessary
      */
-    mutex_destroy(&aesd_device.mutex_lock);
+    mutex_destroy(&aesd_device->mutex_lock);
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
-        if (aesd_device.circ_buffer->entry[index].buffptr != NULL)
+        if (aesd_device->circ_buffer->entry[index].buffptr != NULL)
         {
-            kfree(aesd_device.circ_buffer->entry[index].buffptr);
-            aesd_device.circ_buffer->entry[index].buffptr = NULL;
+            kfree(aesd_device->circ_buffer->entry[index].buffptr);
+            aesd_device->circ_buffer->entry[index].buffptr = NULL;
         }
     }
 
-    kfree(aesd_device.circ_buffer);
+    kfree(aesd_device->circ_buffer);
     kfree(aesd_device);
 
     unregister_chrdev_region(devno, 1);
