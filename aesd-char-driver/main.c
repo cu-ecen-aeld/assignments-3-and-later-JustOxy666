@@ -83,9 +83,14 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     {
         if (dev->circ_buffer->entry[index].buffptr != NULL)
         {
-            copy_to_user(&buf[read_bytes],
+            if (copy_to_user(&buf[read_bytes],
                          dev->circ_buffer->entry[index].buffptr,
-                         dev->circ_buffer->entry[index].size);
+                         dev->circ_buffer->entry[index].size))
+            {
+               retval = -EFAULT;
+               PDEBUG("copy_to_user failed for entry %d", index);
+               goto out;
+            }
             read_bytes += dev->circ_buffer->entry[index].size;
         }
     }
@@ -150,7 +155,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         else
         {
             memset(new_entry->buffptr, 0, sizeof(buf) * count);
-            if (copy_from_user(new_entry->buffptr, buf, count))
+            if (copy_from_user((const char*)new_entry->buffptr, buf, count))
             {
                 retval = -EFAULT;
                 PDEBUG("copy_from_user failed for new_entry->buffptr");
