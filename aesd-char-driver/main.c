@@ -79,10 +79,22 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 	// 	retval = -ERESTARTSYS;
     //     goto out;
     // }
+    char *read_buffer = NULL;
     for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
     {
         if (dev->circ_buffer->entry[index].buffptr != NULL)
         {
+            read_buffer = kmalloc(dev->circ_buffer->entry[index].size, GFP_KERNEL);
+            if (!read_buffer)
+            {
+                retval = -ENOMEM;
+                PDEBUG("kmalloc failed for read_buffer");
+                goto out;
+            }
+
+            memcpy(read_buffer, dev->circ_buffer->entry[index].buffptr, dev->circ_buffer->entry[index].size);
+            PDEBUG("read_buffer size: %zu", dev->circ_buffer->entry[index].size);
+            PDEBUG("read_buffer data: %s", dev->circ_buffer->entry[index].buffptr);
             if (copy_to_user(&buf[read_bytes],
                          dev->circ_buffer->entry[index].buffptr,
                          dev->circ_buffer->entry[index].size))
