@@ -109,6 +109,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
             }
 
             read_bytes += dev->circ_buffer->entry[index].size;
+        }
     }
 
     retval = read_bytes;
