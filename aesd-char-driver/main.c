@@ -81,27 +81,39 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         goto out;
     }
 
-    entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circ_buffer, *f_pos, &entry_offset_byte_rtn);
-    while (read_bytes < count)
+    while (1)
     {
-        if (entry->buffptr != NULL)
+        entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circ_buffer, *f_pos, &entry_offset_byte_rtn);
+        if (entry == NULL)
         {
-            copy_to_user(&buf[read_bytes],
-                         entry->buffptr + entry_offset_byte_rtn + read_bytes, 
-                         sizeof(char));
-            read_bytes++;
-
-            if (read_bytes >= entry->size)
+            PDEBUG("NULL entry detected");
+            break;
+        }
+        
+        PDEBUG("reading entry %s, size %zu",
+                        entry->buffptr, entry->size);
+        read_bytes = 0U;
+        while (read_bytes < count)
+        {
+            if (entry->buffptr != NULL)
             {
-                PDEBUG("completed reading entry %s, size %zu",
-                       entry->buffptr, entry->size);
-                break;
+                copy_to_user(&buf[read_bytes],
+                            entry->buffptr[read_bytes], 
+                            sizeof(char));
+                read_bytes++;
+
+                if (read_bytes >= entry->size)
+                {
+                    PDEBUG("completed reading entry");
+                    break;
+                }
             }
         }
-    }
 
-    *f_pos += read_bytes;
-    retval = read_bytes;
+        *f_pos += read_bytes;
+        retval += read_bytes;
+    }
+    
 
     mutex_unlock(&dev->mutex_lock);
     /**
