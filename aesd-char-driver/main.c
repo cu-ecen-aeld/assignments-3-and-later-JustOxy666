@@ -93,14 +93,14 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
             if (read_bytes >= entry->size)
             {
-                PDEBUG("completed reading entry %d, size %zu",
-                       index, entry->size);
+                PDEBUG("completed reading entry %s, size %zu",
+                       buf[read_bytes], entry->size);
                 break;
             }
         }
     }
 
-    *fpos += read_bytes;
+    *f_pos += read_bytes;
     retval = read_bytes;
 
     mutex_unlock(&dev->mutex_lock);
