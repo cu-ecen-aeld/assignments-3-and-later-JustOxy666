@@ -91,7 +91,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
              */
             if ((read_bytes + dev->circ_buffer->entry[index].size) > count)
             {
-                uint_8_t ind = 0U;
+                uint8_t ind = 0U;
                 for(ind = 0U; ind < count; ind++)
                 {
                     PDEBUG("buf[%d]: %c", ind, buf[ind]);
