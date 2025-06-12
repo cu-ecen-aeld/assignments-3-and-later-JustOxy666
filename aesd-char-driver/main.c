@@ -55,11 +55,12 @@ int aesd_release(struct inode *inode, struct file *filp)
     PDEBUG("release");
     struct aesd_dev *dev;
 
-    dev = container_of(inode->i_cdev, struct aesd_dev, cdev);
-    // filp->private_data = NULL;
     /**
      * TODO: handle release
      */
+
+    dev = filp->private_data;
+
     return 0;
 }
 
@@ -81,47 +82,40 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         goto out;
     }
 
-    // while (1)
-    // {
-        entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circ_buffer, *f_pos, &entry_offset_byte_rtn);
-        if (entry == NULL)
+    entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circ_buffer, *f_pos, &entry_offset_byte_rtn);
+    if (entry == NULL)
+    {
+        PDEBUG("NULL entry detected");
+        goto unlock;
+    }
+
+    PDEBUG("entry->buffptr = %s", entry->buffptr);
+    PDEBUG("entry->size = %zu bytes", entry->size);
+
+    read_bytes = 0U;
+    while (read_bytes < entry->size)
+    {
+        if (entry->buffptr != NULL)
         {
-            PDEBUG("NULL entry detected");
-            goto unlock;
-        }
+            copy_to_user((const char*)buf + read_bytes,
+                        entry->buffptr + read_bytes, 
+                        sizeof(char));
+            read_bytes++;
 
-        PDEBUG("entry->buffptr = %s", entry->buffptr);
-        PDEBUG("entry->size = %zu bytes", entry->size);
-
-        read_bytes = 0U;
-        while (read_bytes < entry->size)
-        {
-            if (entry->buffptr != NULL)
-            {
-                copy_to_user((const char*)buf + read_bytes,
-                            entry->buffptr + read_bytes, 
-                            sizeof(char));
-                read_bytes++;
-
-                if (read_bytes >= count)
-                {   
-                    PDEBUG("read_bytes >= count, breaking out of loop");
-                    break;
-                }
+            if (read_bytes >= count)
+            {   
+                PDEBUG("read_bytes >= count, breaking out of loop");
+                break;
             }
         }
+    }
 
-        PDEBUG("completed reading entry");
-        // buf += read_bytes; // Move the buffer pointer forward
-        *f_pos += read_bytes;
-        retval += read_bytes;
-    // }
+    PDEBUG("completed reading entry");
+    *f_pos += read_bytes;
+    retval += read_bytes;
     
     unlock:
     mutex_unlock(&dev->mutex_lock);
-    /**
-     * TODO: handle read
-     */
     
     out:
     return retval;
@@ -146,6 +140,15 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     /**
      * TODO: handle write
      */
+
+    /* Free memory for oldest entry is the buffer is full */
+    if (dev->circ_buffer->full == true)
+    {
+        PDEBUG("circular buffer is full, overwriting oldest entry");
+        kfree(dev->circ_buffer->entry[dev->circ_buffer->out_offs]);
+    }
+
+    /* Allocate a new entry */
     new_entry = kmalloc(sizeof(struct aesd_buffer_entry), GFP_KERNEL);
     if (!new_entry)
     {
@@ -156,13 +159,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     new_entry->size = count;
     PDEBUG("new_entry->size = %zu bytes", new_entry->size);
-    // if (!new_entry->size)
-    // {
-    //     retval = -ENOMEM;
-    //     PDEBUG("kmalloc failed for new_entry->size");
-    //     goto unlock;
-    // }
-    
     if (count != 0)
     {
         new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
