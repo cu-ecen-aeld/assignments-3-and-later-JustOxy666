@@ -69,7 +69,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 {
     ssize_t retval = 0;
     uint16_t read_bytes = 0U;
-    uint16_t entry_offset_byte_rtn = 0U;
+    size_t entry_offset_byte_rtn = 0U;
     struct aesd_dev *dev;
     struct aesd_buffer_entry *entry;
 
@@ -84,7 +84,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circ_buffer, *f_pos, &entry_offset_byte_rtn);
     while (read_bytes < count)
     {
-        if (entry.buffptr != NULL)
+        if (entry->buffptr != NULL)
         {
             copy_to_user(&buf[read_bytes],
                          entry->buffptr + entry_offset_byte_rtn + read_bytes, 
@@ -94,7 +94,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
             if (read_bytes >= entry->size)
             {
                 PDEBUG("completed reading entry %s, size %zu",
-                       buf[read_bytes], entry->size);
+                       entry->buffptr, entry->size);
                 break;
             }
         }
