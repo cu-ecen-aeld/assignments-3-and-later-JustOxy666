@@ -161,7 +161,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     
     if (count != 0)
     {
-        new_entry->size = count;
+        memcpy(new_entry->size, count, sizeof(count));
         new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
         if (new_entry->buffptr <= 0)
         {
