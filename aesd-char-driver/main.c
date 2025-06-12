@@ -89,7 +89,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
             PDEBUG("NULL entry detected");
             break;
         }
-        
+
         PDEBUG("reading entry %s, size %zu",
                         entry->buffptr, entry->size);
         read_bytes = 0U;
@@ -97,7 +97,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         {
             if (entry->buffptr != NULL)
             {
-                copy_to_user(&buf[read_bytes],
+                copy_to_user((const char*)&buf[read_bytes],
                             entry->buffptr[read_bytes], 
                             sizeof(char));
                 read_bytes++;
@@ -250,7 +250,8 @@ int aesd_init_module(void)
      * TODO: initialize the AESD specific portion of the device
      */
 
-    aesd_device->circ_buffer = kmalloc(sizeof(aesd_device->circ_buffer), GFP_KERNEL);
+    aesd_device->circ_buffer = kmalloc(sizeof(struct aesd_device->circ_buffer), GFP_KERNEL);
+    memset(aesd_device->circ_buffer, 0, sizeof(struct aesd_circular_buffer));
     aesd_circular_buffer_init(aesd_device->circ_buffer);
     mutex_init(&aesd_device->mutex_lock);
 

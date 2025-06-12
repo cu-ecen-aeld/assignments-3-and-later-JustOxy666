@@ -43,6 +43,12 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         {
             buf_index = 0;
         }
+        
+        /* Check if we have reached the end of the buffer */
+        if (buffer->entry[buf_index].buffptr == NULL)
+        {
+            break; /* No more entries to read */
+        }
 
         /* Check if we are on requested entry */
         if ((bytecnt + buffer->entry[buf_index].size) > char_offset)
