@@ -112,6 +112,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         }
 
         PDEBUG("completed reading entry");
+        buf += read_bytes; // Move the buffer pointer forward
         *f_pos += read_bytes;
         retval += read_bytes;
     }
