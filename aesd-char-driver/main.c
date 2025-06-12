@@ -99,7 +99,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
             if (entry->buffptr != NULL)
             {
                 copy_to_user((const char*)buf + read_bytes,
-                            entry->buffptr + *f_pos + read_bytes, 
+                            entry->buffptr + read_bytes, 
                             sizeof(char));
                 read_bytes++;
 
