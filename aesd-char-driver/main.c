@@ -69,7 +69,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 {
     uint8_t index = 0U;
     ssize_t retval = 0;
-    uint16_t read_bytes = 0;
+    uint16_t read_bytes = 0U;
     struct aesd_dev *dev;
 
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
@@ -84,21 +84,31 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         if ((dev->circ_buffer->entry[index].buffptr != NULL) &&
             (dev->circ_buffer->entry[index].size > 0))
         {
+            PDEBUG("read_buffer size: %zu", dev->circ_buffer->entry[index].size);
+            PDEBUG("read_buffer data: %s", dev->circ_buffer->entry[index].buffptr);
             /**
              * Check if we have enough space in the user buffer
              */
             if ((read_bytes + dev->circ_buffer->entry[index].size) > count)
             {
-                PDEBUG("Not enough space in user buffer, stopping read");
-                retval = -ENOSPC;
-                goto out;
+                uint_8_t ind = 0U;
+                for(ind = 0U; ind < count; ind++)
+                {
+                    PDEBUG("buf[%d]: %c", ind, buf[ind]);
+                    copy_to_user(&buf[read_bytes + ind], dev->circ_buffer->entry[index].buffptr[ind], 1);
+                }
+
+                read_bytes += ind;
+                continue;
+                // PDEBUG("Not enough space in user buffer, stopping read");
+                // retval = -ENOSPC;
+                // goto out;
             }
 
             /**
              * Copy data from circular buffer entry to user buffer
              */
-            PDEBUG("read_buffer size: %zu", dev->circ_buffer->entry[index].size);
-            PDEBUG("read_buffer data: %s", dev->circ_buffer->entry[index].buffptr);
+            
             if (copy_to_user(&buf[read_bytes],
                              dev->circ_buffer->entry[index].buffptr,
                              dev->circ_buffer->entry[index].size))
