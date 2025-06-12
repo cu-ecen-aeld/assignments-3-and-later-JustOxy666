@@ -81,8 +81,8 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         goto out;
     }
 
-    while (1)
-    {
+    // while (1)
+    // {
         entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circ_buffer, *f_pos, &entry_offset_byte_rtn);
         if (entry == NULL)
         {
@@ -112,10 +112,10 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         }
 
         PDEBUG("completed reading entry");
-        buf += read_bytes; // Move the buffer pointer forward
+        // buf += read_bytes; // Move the buffer pointer forward
         *f_pos += read_bytes;
         retval += read_bytes;
-    }
+    // }
     
     unlock:
     mutex_unlock(&dev->mutex_lock);
