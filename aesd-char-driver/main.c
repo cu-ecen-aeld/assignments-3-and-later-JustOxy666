@@ -151,17 +151,17 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto unlock;
     }
 
-    new_entry->size = kmalloc(sizeof(size_t), GFP_KERNEL);
-    if (!new_entry->size)
-    {
-        retval = -ENOMEM;
-        PDEBUG("kmalloc failed for new_entry->size");
-        goto unlock;
-    }
+    new_entry->size = count;
+    PDEBUG("new_entry->size = %zu bytes", count);
+    // if (!new_entry->size)
+    // {
+    //     retval = -ENOMEM;
+    //     PDEBUG("kmalloc failed for new_entry->size");
+    //     goto unlock;
+    // }
     
     if (count != 0)
     {
-        memcpy(new_entry->size, count, sizeof(size_t));
         new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
         if (new_entry->buffptr <= 0)
         {
