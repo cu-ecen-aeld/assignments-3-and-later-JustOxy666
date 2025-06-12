@@ -87,18 +87,19 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         if (entry == NULL)
         {
             PDEBUG("NULL entry detected");
-            break;
+            goto unlock;
         }
 
-        PDEBUG("reading entry %s, size %zu",
-                        entry->buffptr, entry->size);
+        PDEBUG("reading entry %s", entry->buffptr);
+        PDEBUG("entry->size = %zu bytes", entry->size);
+
         read_bytes = 0U;
         while (read_bytes < count)
         {
             if (entry->buffptr != NULL)
             {
-                copy_to_user((const char*)&buf[read_bytes],
-                            entry->buffptr[read_bytes], 
+                copy_to_user((const char*)&buf[*f_pos + read_bytes],
+                            entry->buffptr[*f_pos + read_bytes], 
                             sizeof(char));
                 read_bytes++;
 
@@ -114,7 +115,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         retval += read_bytes;
     }
     
-
+    unlock:
     mutex_unlock(&dev->mutex_lock);
     /**
      * TODO: handle read
@@ -152,7 +153,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
 
     new_entry->size = count;
-    PDEBUG("new_entry->size = %zu bytes", count);
+    PDEBUG("new_entry->size = %zu bytes", new_entry->size);
     // if (!new_entry->size)
     // {
     //     retval = -ENOMEM;
