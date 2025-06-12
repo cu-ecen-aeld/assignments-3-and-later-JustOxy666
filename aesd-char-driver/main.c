@@ -67,10 +67,11 @@ int aesd_release(struct inode *inode, struct file *filp)
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-    uint8_t index = 0U;
     ssize_t retval = 0;
     uint16_t read_bytes = 0U;
+    uint16_t entry_offset_byte_rtn = 0U;
     struct aesd_dev *dev;
+    struct aesd_buffer_entry *entry;
 
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     dev = filp->private_data;
@@ -79,51 +80,28 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 		retval = -ERESTARTSYS;
         goto out;
     }
-    for (index = 0; index < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; index++)
+
+    entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circ_buffer, *f_pos, &entry_offset_byte_rtn);
+    while (read_bytes < count)
     {
-        if ((dev->circ_buffer->entry[index].buffptr != NULL) &&
-            (dev->circ_buffer->entry[index].size > 0))
+        if (entry.buffptr != NULL)
         {
-            PDEBUG("read_buffer size: %zu", dev->circ_buffer->entry[index].size);
-            PDEBUG("read_buffer data: %s", dev->circ_buffer->entry[index].buffptr);
-            /**
-             * Check if we have enough space in the user buffer
-             */
-            if ((read_bytes + dev->circ_buffer->entry[index].size) > count)
+            copy_to_user(&buf[read_bytes],
+                         entry->buffptr + entry_offset_byte_rtn + read_bytes, 
+                         sizeof(char));
+            read_bytes++;
+
+            if (read_bytes >= entry->size)
             {
-                uint8_t ind = 0U;
-                for(ind = 0U; ind < count; ind++)
-                {
-                    PDEBUG("buf[%d]: %c", ind, buf[ind]);
-                    copy_to_user(&buf[read_bytes + ind], dev->circ_buffer->entry[index].buffptr[ind], 1);
-                }
-
-                read_bytes += ind;
-                continue;
-                // PDEBUG("Not enough space in user buffer, stopping read");
-                // retval = -ENOSPC;
-                // goto out;
+                PDEBUG("completed reading entry %d, size %zu",
+                       index, entry->size);
+                break;
             }
-
-            /**
-             * Copy data from circular buffer entry to user buffer
-             */
-            
-            if (copy_to_user(&buf[read_bytes],
-                             dev->circ_buffer->entry[index].buffptr,
-                             dev->circ_buffer->entry[index].size))
-            {
-               retval = -EFAULT;
-               PDEBUG("copy_to_user failed for entry %d", index);
-               goto out;
-            }
-
-            read_bytes += dev->circ_buffer->entry[index].size;
         }
     }
 
+    *fpos += read_bytes;
     retval = read_bytes;
-    PDEBUG("read %zu bytes from circular buffer", read_bytes);
 
     mutex_unlock(&dev->mutex_lock);
     /**
