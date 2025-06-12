@@ -90,7 +90,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
             goto unlock;
         }
 
-        PDEBUG("entry->buffptr = '%s'", entry->buffptr);
+        PDEBUG("entry->buffptr = %s", entry->buffptr);
         PDEBUG("entry->size = %zu bytes", entry->size);
 
         read_bytes = 0U;
@@ -98,7 +98,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         {
             if (entry->buffptr != NULL)
             {
-                copy_to_user((const char*)buf + *f_pos + read_bytes,
+                copy_to_user((const char*)buf + read_bytes,
                             entry->buffptr + *f_pos + read_bytes, 
                             sizeof(char));
                 read_bytes++;
