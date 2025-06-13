@@ -145,7 +145,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 dev->circ_buffer->in_offs, dev->circ_buffer->out_offs);
         PDEBUG("emptying memory for entry = %s",
                 dev->circ_buffer->entry[dev->circ_buffer->out_offs].buffptr);
-        kfree(&dev->circ_buffer->entry[dev->circ_buffer->out_offs]);
+        kfree(&dev->circ_buffer->entry[dev->circ_buffer->out_offs].buffptr);
+        kfree(&dev->circ_buffer->entry[dev->circ_buffer->out_offs].size);
     }
 
     /* Allocate a new entry */
