@@ -71,11 +71,11 @@ void
 aesd_circular_buffer_add_entry(
     struct aesd_circular_buffer *buffer,
     const struct aesd_buffer_entry *add_entry,
-    Boolean append_data
+    Boolean complete_entry
 )
 {
     buffer->entry[buffer->in_offs] = *add_entry;
-    if (append_data == FALSE)
+    if (complete_entry == TRUE)
     {
         /* Move read point if  buffer is full */
         if (buffer->full == true)
