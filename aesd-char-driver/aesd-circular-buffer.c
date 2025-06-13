@@ -38,6 +38,11 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
     size_t bytecnt = 0;
     while (cnt < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
     {   
+        if (buff_index >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        {
+            buf_index = 0;
+        }
+        
         /* Check whether we need to roll-over */
         if (buf_index >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
         {
