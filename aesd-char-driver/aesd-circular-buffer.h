@@ -16,7 +16,7 @@
 #include <stdbool.h>
 #endif
 
-typefdef enum 
+typedef enum 
 {
      FALSE = 0U,
      TRUE = 1U
