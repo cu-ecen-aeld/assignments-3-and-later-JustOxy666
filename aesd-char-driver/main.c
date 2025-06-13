@@ -140,7 +140,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     /* Free memory for oldest entry is the buffer is full */
     if (dev->circ_buffer->full == true)
     {
-        struct aesd_buffer_entry *old_entry = &dev->circ_buffer->entry[buffer->in_offs];
+        struct aesd_buffer_entry *old_entry = 
+            &dev->circ_buffer->entry[dev->circ_buffer->in_offs];
         if (old_entry->buffptr != NULL)
         {
             kfree((void *)old_entry->buffptr);
