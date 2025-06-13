@@ -196,10 +196,12 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             /* Check if entry is complete or not */
             if (new_entry->buffptr[count - 1] != '\n')
             {
+                PDEBUG("new_entry->buffptr[count - 1] != \\n");
                 dev->write_entry_complete = FALSE;
             }
             else
             {
+                PDEBUG("new_entry->buffptr[count - 1] == \\n");
                 dev->write_entry_complete = TRUE;
             }
 
