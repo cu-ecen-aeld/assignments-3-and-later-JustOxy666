@@ -276,7 +276,7 @@ int aesd_init_module(void)
     aesd_device->circ_buffer = kmalloc(sizeof(struct aesd_circular_buffer), GFP_KERNEL);
     memset(aesd_device->circ_buffer, 0, sizeof(struct aesd_circular_buffer));
     aesd_circular_buffer_init(aesd_device->circ_buffer);
-    dev->write_entry_complete = TRUE;
+    aesd_device->write_entry_complete = TRUE;
     mutex_init(&aesd_device->mutex_lock);
 
     result = aesd_setup_cdev(aesd_device);
