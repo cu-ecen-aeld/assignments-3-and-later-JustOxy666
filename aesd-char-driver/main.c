@@ -125,7 +125,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-    ssize_t retval = 0;
+    ssize_t retval, buf_offset = 0;
     struct aesd_dev *dev;
     struct aesd_buffer_entry *new_entry;
 
@@ -148,12 +148,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             old_entry->buffptr = NULL;
             old_entry->size = 0;
         }
-
-        PDEBUG("circular buffer is full, overwriting oldest entry:");
-        PDEBUG("circular buffer in_offs = %d, out_offs = %d",
-                dev->circ_buffer->in_offs, dev->circ_buffer->out_offs);
-        PDEBUG("emptying memory for entry = %s",
-                dev->circ_buffer->entry[dev->circ_buffer->out_offs].buffptr);
     }
 
     /* Allocate a new entry */
@@ -169,7 +163,19 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     PDEBUG("new_entry->size = %zu bytes", new_entry->size);
     if (count != 0)
     {
-        new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
+        if (dev->write_entry_complete == FALSE)
+        {
+            /* Append new data to the existing entry */
+            buf_offset = dev->circ_buffer->entry[dev->circ_buffer->in_offs].size;
+            new_entry->size = count + buf_offset;
+            memcpy(new_entry->buffptr, 
+                    dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr, 
+                    buf_offset);
+            kfree(dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr);
+            dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr = NULL;
+            dev->circ_buffer->entry[dev->circ_buffer->in_offs].size = 0;
+        }
+        new_entry->buffptr = kmalloc((sizeof(char) * (count + buf_offset)), GFP_KERNEL);
         if (new_entry->buffptr <= 0)
         {
             retval = -ENOMEM;
@@ -178,7 +184,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         }
         else
         {
-            if (copy_from_user((const char*)new_entry->buffptr, buf, count))
+            if (copy_from_user((const char*)(new_entry->buffptr + buf_offset), buf, count))
             {
                 retval = -EFAULT;
                 PDEBUG("copy_from_user failed for new_entry->buffptr");
@@ -187,9 +193,19 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 goto unlock;
             }
             
+            /* Check if entry is complete or not */
+            if (new_entry->buffptr[count - 1] != '\n')
+            {
+                dev->write_entry_complete = FALSE;
+            }
+            else
+            {
+                dev->write_entry_complete = TRUE;
+            }
 
-            aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry);
+            aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete);
             retval = count;
+            PDEBUG("write added buf = %s", new_entry->buffptr);
             PDEBUG("write added %zu bytes to circular buffer", count);
         }
     }
