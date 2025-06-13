@@ -192,8 +192,13 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 new_entry->buffptr = NULL;
                 goto unlock;
             }
-            
-            /* Check if entry is complete or not */
+
+            aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete);
+            retval = count;
+            PDEBUG("write added buf = %s", new_entry->buffptr);
+            PDEBUG("write added %zu bytes to circular buffer", count);
+
+            /* Check if entry is complete or not for the next write */
             if (new_entry->buffptr[count - 1] != '\n')
             {
                 dev->write_entry_complete = FALSE;
@@ -202,11 +207,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             {
                 dev->write_entry_complete = TRUE;
             }
-
-            aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete);
-            retval = count;
-            PDEBUG("write added buf = %s", new_entry->buffptr);
-            PDEBUG("write added %zu bytes to circular buffer", count);
         }
     }
     else
@@ -276,6 +276,7 @@ int aesd_init_module(void)
     aesd_device->circ_buffer = kmalloc(sizeof(struct aesd_circular_buffer), GFP_KERNEL);
     memset(aesd_device->circ_buffer, 0, sizeof(struct aesd_circular_buffer));
     aesd_circular_buffer_init(aesd_device->circ_buffer);
+    dev->write_entry_complete = TRUE;
     mutex_init(&aesd_device->mutex_lock);
 
     result = aesd_setup_cdev(aesd_device);
