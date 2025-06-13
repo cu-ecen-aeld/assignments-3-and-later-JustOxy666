@@ -98,7 +98,9 @@ aesd_circular_buffer_add_entry(
             buffer->in_offs = 0;
         }
         
-        /* Check if buffer is full */
+        
+    }
+    /* Check if buffer is full */
         if (buffer->in_offs == buffer->out_offs)
         {
             buffer->full = true;
@@ -107,7 +109,6 @@ aesd_circular_buffer_add_entry(
         {
             buffer->full = false;
         }
-    }
 }
 
 /**
