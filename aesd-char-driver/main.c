@@ -168,6 +168,14 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             /* Append new data to the existing entry */
             buf_offset = dev->circ_buffer->entry[dev->circ_buffer->in_offs].size;
             new_entry->size = count + buf_offset;
+            new_entry->buffptr = kmalloc((sizeof(char) * (count + buf_offset)), GFP_KERNEL);
+            if (new_entry->buffptr <= 0)
+            {
+                retval = -ENOMEM;
+                PDEBUG("kmalloc failed for new_entry->buffptr");
+                    goto unlock;
+            }
+
             memcpy(new_entry->buffptr, 
                     dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr, 
                     buf_offset);
@@ -175,39 +183,40 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr = NULL;
             dev->circ_buffer->entry[dev->circ_buffer->in_offs].size = 0;
         }
-        new_entry->buffptr = kmalloc((sizeof(char) * (count + buf_offset)), GFP_KERNEL);
-        if (new_entry->buffptr <= 0)
+        else /* dev->write_entry_complete == TRUE */
         {
-            retval = -ENOMEM;
-            PDEBUG("kmalloc failed for new_entry->buffptr");
-                goto out;
+            new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
+            if (new_entry->buffptr <= 0)
+            {
+                retval = -ENOMEM;
+                PDEBUG("kmalloc failed for new_entry->buffptr");
+                    goto unlock;
+            }
+        }
+
+        if (copy_from_user((const char*)(new_entry->buffptr + buf_offset), buf, count))
+        {
+            retval = -EFAULT;
+            PDEBUG("copy_from_user failed for new_entry->buffptr");
+            kfree(new_entry->buffptr);
+            new_entry->buffptr = NULL;
+            goto unlock;
+        }
+
+        /* Check if entry is complete */
+        if (new_entry->buffptr[count - 1] != '\n')
+        {
+            dev->write_entry_complete = FALSE;
         }
         else
         {
-            if (copy_from_user((const char*)(new_entry->buffptr + buf_offset), buf, count))
-            {
-                retval = -EFAULT;
-                PDEBUG("copy_from_user failed for new_entry->buffptr");
-                kfree(new_entry->buffptr);
-                new_entry->buffptr = NULL;
-                goto unlock;
-            }
-
-            /* Check if entry is complete */
-            if (new_entry->buffptr[count - 1] != '\n')
-            {
-                dev->write_entry_complete = FALSE;
-            }
-            else
-            {
-                dev->write_entry_complete = TRUE;
-            }
-
-            aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete);
-            retval = count;
-            PDEBUG("write added buf = %s", new_entry->buffptr);
-            PDEBUG("write added %zu bytes to circular buffer", count);
+            dev->write_entry_complete = TRUE;
         }
+
+        aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete);
+        retval = count;
+        PDEBUG("write added buf = %s", new_entry->buffptr);
+        PDEBUG("write added %zu bytes to circular buffer", count);
     }
     else
     {
