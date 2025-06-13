@@ -71,13 +71,14 @@ void
 aesd_circular_buffer_add_entry(
     struct aesd_circular_buffer *buffer,
     const struct aesd_buffer_entry *add_entry,
-    Boolean complete_entry
+    Boolean complete_entry,
+    Boolean new_entry
 )
 {
     buffer->entry[buffer->in_offs] = *add_entry;
-    if (complete_entry == TRUE)
+    if (new_entry == TRUE)
     {
-        /* Move read point if  buffer is full */
+        /* Move read point if buffer is full */
         if (buffer->full == true)
         {
             buffer->out_offs++;
@@ -86,7 +87,10 @@ aesd_circular_buffer_add_entry(
                 buffer->out_offs = 0;
             }
         }
+    }
 
+    if (complete_entry == TRUE)
+    {
         /* Move write point to next location and hadle overrun */
         buffer->in_offs++;
         if (buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)

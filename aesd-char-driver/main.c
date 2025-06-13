@@ -128,6 +128,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     ssize_t retval, buf_offset = 0;
     struct aesd_dev *dev;
     struct aesd_buffer_entry *new_entry;
+    Boolean new_entry_flag = TRUE;
 
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     dev = filp->private_data;
@@ -166,6 +167,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         if (dev->write_entry_complete == FALSE)
         {
             /* Append new data to the existing entry */
+            new_entry_flag = FALSE;
             buf_offset = dev->circ_buffer->entry[dev->circ_buffer->in_offs].size;
             new_entry->size = count + buf_offset;
             new_entry->buffptr = kmalloc((sizeof(char) * (count + buf_offset)), GFP_KERNEL);
@@ -213,7 +215,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             dev->write_entry_complete = TRUE;
         }
 
-        aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete);
+        aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete, new_entry_flag);
         retval = count;
         PDEBUG("write added buf = %s", new_entry->buffptr);
         PDEBUG("write added %zu bytes to circular buffer", count);
