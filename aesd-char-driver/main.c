@@ -140,7 +140,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     /* Free memory for oldest entry is the buffer is full */
     if (dev->circ_buffer->full == true)
     {
-        PDEBUG("circular buffer is full, overwriting oldest entry");
+        PDEBUG("circular buffer is full, overwriting oldest entry:");
+        PDEBUG("circular buffer in_offs = %d, out_offs = %d",
+                dev->circ_buffer->in_offs, dev->circ_buffer->out_offs);
+        PDEBUG("emptying memory for entry = %s",
+                dev->circ_buffer->entry[dev->circ_buffer->out_offs].buffptr);
         kfree(&dev->circ_buffer->entry[dev->circ_buffer->out_offs]);
     }
 
