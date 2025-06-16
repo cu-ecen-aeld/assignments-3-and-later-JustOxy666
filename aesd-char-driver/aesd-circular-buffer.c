@@ -43,12 +43,6 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         {
             buf_index = 0;
         }
-        
-        /* Check if we have reached the end of the buffer */
-        if (buffer->entry[buf_index].buffptr == NULL)
-        {
-            break; /* No more entries to read */
-        }
 
         /* Check if we are on requested entry */
         if ((bytecnt + buffer->entry[buf_index].size) > char_offset)
@@ -73,31 +67,46 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 * Any necessary locking must be handled by the caller
 * Any memory referenced in @param add_entry must be allocated by and/or must have a lifetime managed by the caller.
 */
-void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
+void 
+aesd_circular_buffer_add_entry(
+    struct aesd_circular_buffer *buffer,
+    const struct aesd_buffer_entry *add_entry,
+    Boolean complete_entry,
+    Boolean new_entry
+)
 {
-    if (buffer->full == true)
+    buffer->entry[buffer->in_offs] = *add_entry;
+    if (new_entry == TRUE)
     {
-        buffer->out_offs++;
-        if (buffer->out_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        /* Move read point if buffer is full */
+        if (buffer->full == true)
         {
-            buffer->out_offs = 0;
+            buffer->out_offs++;
+            if (buffer->out_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+            {
+                buffer->out_offs = 0;
+            }
         }
     }
 
-    buffer->entry[buffer->in_offs] = *add_entry;
-    buffer->in_offs++;
-    if (buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+    if (complete_entry == TRUE)
     {
-        buffer->in_offs = 0;
-    }
+        /* Move write point to next location and hadle overrun */
+        buffer->in_offs++;
+        if (buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        {
+            buffer->in_offs = 0;
+        }
 
-    if (buffer->in_offs == buffer->out_offs)
-    {
-        buffer->full = true;
-    }
-    else
-    {
-        buffer->full = false;
+        /* Check if buffer is full */
+        if (buffer->in_offs == buffer->out_offs)
+        {
+            buffer->full = true;
+        }
+        else
+        {
+            buffer->full = false;
+        }
     }
 }
 
