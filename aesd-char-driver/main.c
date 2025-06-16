@@ -216,7 +216,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     PDEBUG("new_entry->buffptr = %s", new_entry->buffptr);
 
     /* Check if entry is complete */
-    if (new_entry->buffptr[count - 1] != '\n')
+    if (new_entry->buffptr[buf_offset + count - 1] != '\n')
     {
         PDEBUG("Entry not complete, setting new flag to FALSE");
         aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, FALSE, dev->write_entry_new_flag);
