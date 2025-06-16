@@ -76,7 +76,7 @@ aesd_circular_buffer_add_entry(
 )
 {
     buffer->entry[buffer->in_offs] = *add_entry;
-    if ((complete_entry == TRUE) || (new_entry == TRUE))
+    if (new_entry == TRUE)
     {
         /* Move read point if buffer is full */
         if (buffer->full == true)
@@ -97,16 +97,16 @@ aesd_circular_buffer_add_entry(
         {
             buffer->in_offs = 0;
         }
-    }
 
-    /* Check if buffer is full */
-    if (buffer->in_offs == buffer->out_offs)
-    {
-        buffer->full = true;
-    }
-    else
-    {
-        buffer->full = false;
+        /* Check if buffer is full */
+        if (buffer->in_offs == buffer->out_offs)
+        {
+            buffer->full = true;
+        }
+        else
+        {
+            buffer->full = false;
+        }
     }
 }
 

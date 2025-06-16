@@ -205,22 +205,25 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             goto unlock;
         }
 
+        PDEBUG("-------------");
+        PDEBUG("new_entry->buffptr = %s", new_entry->buffptr);
+
         /* Check if entry is complete */
         if (new_entry->buffptr[count - 1] != '\n')
         {
+            PDEBUG("dev->write_entry_complete FALSE");
             dev->write_entry_complete = FALSE;
         }
         else
         {
+            PDEBUG("dev->write_entry_complete TRUE");
             dev->write_entry_complete = TRUE;
         }
 
-        PDEBUG("-------------");
-        PDEBUG("new_entry->buffptr = %s", new_entry->buffptr);
+        
         PDEBUG("dev->circ_buffer->in_offs %d", dev->circ_buffer->in_offs);
         PDEBUG("dev->circ_buffer->out_offs %d", dev->circ_buffer->out_offs);
         PDEBUG("dev->circ_buffer->full %d", dev->circ_buffer->full);
-        PDEBUG("dev->write_entry_complete %d", dev->write_entry_complete);
         PDEBUG("new_entry_flag %d", new_entry_flag);
         PDEBUG("-------------");
         aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete, new_entry_flag);
