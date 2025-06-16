@@ -137,9 +137,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto out;
     }
 
-    /* ----------------------------------------- */
-    /* ---------- MANAGE MEMORY ----- */
-    /* ----------------------------------------- */
     /* Free memory for oldest entry is the buffer is full and previaous enrty was completed */
     if ((dev->circ_buffer->full == true) && (dev->write_entry_new_flag == TRUE))
     {
@@ -212,9 +209,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto unlock;
     }
 
-    PDEBUG("-------------");
-    PDEBUG("new_entry->buffptr = %s", new_entry->buffptr);
-
     /* Check if entry is complete */
     if (new_entry->buffptr[buf_offset + count - 1] != '\n')
     {
@@ -230,15 +224,16 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
 
     
+    PDEBUG("-------------");
     PDEBUG("dev->circ_buffer->in_offs %d", dev->circ_buffer->in_offs);
     PDEBUG("dev->circ_buffer->out_offs %d", dev->circ_buffer->out_offs);
     PDEBUG("dev->circ_buffer->full %d", dev->circ_buffer->full);
     PDEBUG("dev->write_entry_new_flag %d", dev->write_entry_new_flag);
-    PDEBUG("-------------");
-    // aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete, dev->write_entry_new_flag);
-    retval = count;
     PDEBUG("write added buf = %s", new_entry->buffptr);
-    PDEBUG("write added %zu bytes to circular buffer", count);
+    PDEBUG("write added %zu bytes to circular buffer", (count + buf_offset));
+    PDEBUG("-------------");
+
+    retval = count;
 
     unlock:
     mutex_unlock(&dev->mutex_lock);
