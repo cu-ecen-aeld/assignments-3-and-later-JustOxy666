@@ -128,7 +128,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     ssize_t retval, buf_offset = 0;
     struct aesd_dev *dev;
     struct aesd_buffer_entry *new_entry;
-    Boolean new_entry_flag = TRUE;
 
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     dev = filp->private_data;
@@ -138,8 +137,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto out;
     }
 
+    /* ----------------------------------------- */
+    /* ---------- MANAGE MEMORY ----- */
+    /* ----------------------------------------- */
     /* Free memory for oldest entry is the buffer is full and previaous enrty was completed */
-    if ((dev->circ_buffer->full == true) && (dev->write_entry_complete == TRUE))
+    if ((dev->circ_buffer->full == true) && (dev->write_entry_new_flag == TRUE))
     {
         struct aesd_buffer_entry *old_entry = 
             &dev->circ_buffer->entry[dev->circ_buffer->in_offs];
@@ -151,7 +153,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         }
     }
 
-    /* Allocate a new entry */
+    /* Allocate memory for a new entry struct pointer */
     new_entry = kmalloc(sizeof(struct aesd_buffer_entry), GFP_KERNEL);
     if (!new_entry)
     {
@@ -162,79 +164,81 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     new_entry->size = count;
     PDEBUG("new_entry->size = %zu bytes", new_entry->size);
-    if (count != 0)
+    if (count == 0)
     {
-        if (dev->write_entry_complete == FALSE)
-        {
-            /* Append new data to the existing entry */
-            new_entry_flag = FALSE;
-            buf_offset = dev->circ_buffer->entry[dev->circ_buffer->in_offs].size;
-            new_entry->size = count + buf_offset;
-            new_entry->buffptr = kmalloc((sizeof(char) * (count + buf_offset)), GFP_KERNEL);
-            if (new_entry->buffptr <= 0)
-            {
-                retval = -ENOMEM;
-                PDEBUG("kmalloc failed for new_entry->buffptr");
-                    goto unlock;
-            }
+        PDEBUG("write called with zero count, nothing to do");
+        goto unlock;
+    }
 
-            memcpy(new_entry->buffptr, 
-                    dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr, 
-                    buf_offset);
-            kfree(dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr);
-            dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr = NULL;
-            dev->circ_buffer->entry[dev->circ_buffer->in_offs].size = 0;
-        }
-        else /* dev->write_entry_complete == TRUE */
+    if (dev->write_entry_new_flag == FALSE)
+    {
+        /* Append new data to the existing entry */
+        dev->write_entry_new_flag = FALSE;
+        buf_offset = dev->circ_buffer->entry[dev->circ_buffer->in_offs].size;
+        new_entry->size = count + buf_offset;
+        new_entry->buffptr = kmalloc((sizeof(char) * (count + buf_offset)), GFP_KERNEL);
+        if (new_entry->buffptr <= 0)
         {
-            new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
-            if (new_entry->buffptr <= 0)
-            {
-                retval = -ENOMEM;
-                PDEBUG("kmalloc failed for new_entry->buffptr");
-                    goto unlock;
-            }
+            retval = -ENOMEM;
+            PDEBUG("kmalloc failed for new_entry->buffptr");
+                goto unlock;
         }
 
-        if (copy_from_user((const char*)(new_entry->buffptr + buf_offset), buf, count))
+        memcpy(new_entry->buffptr, 
+                dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr, 
+                buf_offset);
+        kfree(dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr);
+        dev->circ_buffer->entry[dev->circ_buffer->in_offs].buffptr = NULL;
+        dev->circ_buffer->entry[dev->circ_buffer->in_offs].size = 0;
+    }
+    else /* dev->write_entry_new_flag == TRUE */
+    {
+        /* Don't append to existing entry */
+        new_entry->buffptr = kmalloc((sizeof(char) * count), GFP_KERNEL);
+        if (new_entry->buffptr <= 0)
         {
-            retval = -EFAULT;
-            PDEBUG("copy_from_user failed for new_entry->buffptr");
-            kfree(new_entry->buffptr);
-            new_entry->buffptr = NULL;
-            goto unlock;
+            retval = -ENOMEM;
+            PDEBUG("kmalloc failed for new_entry->buffptr");
+                goto unlock;
         }
+    }
 
-        PDEBUG("-------------");
-        PDEBUG("new_entry->buffptr = %s", new_entry->buffptr);
+    if (copy_from_user((const char*)(new_entry->buffptr + buf_offset), buf, count))
+    {
+        retval = -EFAULT;
+        PDEBUG("copy_from_user failed for new_entry->buffptr");
+        kfree(new_entry->buffptr);
+        new_entry->buffptr = NULL;
+        goto unlock;
+    }
 
-        /* Check if entry is complete */
-        if (new_entry->buffptr[count - 1] != '\n')
-        {
-            PDEBUG("dev->write_entry_complete FALSE");
-            dev->write_entry_complete = FALSE;
-        }
-        else
-        {
-            PDEBUG("dev->write_entry_complete TRUE");
-            dev->write_entry_complete = TRUE;
-        }
+    PDEBUG("-------------");
+    PDEBUG("new_entry->buffptr = %s", new_entry->buffptr);
 
-        
-        PDEBUG("dev->circ_buffer->in_offs %d", dev->circ_buffer->in_offs);
-        PDEBUG("dev->circ_buffer->out_offs %d", dev->circ_buffer->out_offs);
-        PDEBUG("dev->circ_buffer->full %d", dev->circ_buffer->full);
-        PDEBUG("new_entry_flag %d", new_entry_flag);
-        PDEBUG("-------------");
-        aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete, new_entry_flag);
-        retval = count;
-        PDEBUG("write added buf = %s", new_entry->buffptr);
-        PDEBUG("write added %zu bytes to circular buffer", count);
+    /* Check if entry is complete */
+    if (new_entry->buffptr[count - 1] != '\n')
+    {
+        PDEBUG("Entry not complete, setting new flag to FALSE");
+        aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, FALSE, dev->write_entry_new_flag);
+        dev->write_entry_new_flag = FALSE;
     }
     else
     {
-        PDEBUG("write called with zero count, nothing to do");
+        PDEBUG("Entry complete, setting new flag to TRUE");
+        aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, TRUE, dev->write_entry_new_flag);
+        dev->write_entry_new_flag = TRUE;
     }
+
+    
+    PDEBUG("dev->circ_buffer->in_offs %d", dev->circ_buffer->in_offs);
+    PDEBUG("dev->circ_buffer->out_offs %d", dev->circ_buffer->out_offs);
+    PDEBUG("dev->circ_buffer->full %d", dev->circ_buffer->full);
+    PDEBUG("dev->write_entry_new_flag %d", dev->write_entry_new_flag);
+    PDEBUG("-------------");
+    // aesd_circular_buffer_add_entry(dev->circ_buffer, new_entry, dev->write_entry_complete, dev->write_entry_new_flag);
+    retval = count;
+    PDEBUG("write added buf = %s", new_entry->buffptr);
+    PDEBUG("write added %zu bytes to circular buffer", count);
 
     unlock:
     mutex_unlock(&dev->mutex_lock);
