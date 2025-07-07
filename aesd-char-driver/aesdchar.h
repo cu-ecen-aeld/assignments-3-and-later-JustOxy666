@@ -27,10 +27,10 @@
 
 struct aesd_dev
 {
+    Boolean write_entry_new_flag; /* Flag to indicate new write buffer entry */
     struct aesd_circular_buffer *circ_buffer; /* Circular buffer for AESD data */
     struct mutex mutex_lock; /* Mutex for synchronizing access to the circular buffer */
     struct cdev cdev;     /* Char device structure      */
-    lloff_t buff_pos; /* File position for read operations */
 };
 
 
