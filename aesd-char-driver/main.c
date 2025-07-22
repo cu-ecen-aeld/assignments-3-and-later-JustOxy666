@@ -109,7 +109,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     PDEBUG("-------------");
     PDEBUG("completed reading entry");
     PDEBUG("read %zu bytes from entry", read_bytes);
-    PDEBUG("filep->f_pos %lld", *f_pos);
+    PDEBUG("filp->f_pos %lld", *f_pos);
     PDEBUG("-------------");
     
     unlock:
@@ -209,7 +209,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto unlock;
     }
 
-    filep->f_pos += count; /* Update file position */
+    filp->f_pos += count; /* Update file position */
 
     /* Check if entry is complete */
     if (new_entry->buffptr[buf_offset + count - 1] != '\n')
@@ -234,7 +234,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     PDEBUG("dev->write_entry_new_flag %d", dev->write_entry_new_flag);
     PDEBUG("write added buf = %s", new_entry->buffptr);
     PDEBUG("write added %zu bytes to circular buffer", (count + buf_offset));
-    PDEBUG("filep->f_pos %lld", filep->f_pos);
+    PDEBUG("filp->f_pos %lld", filp->f_pos);
     PDEBUG("-------------");
 
     retval = count;
@@ -246,7 +246,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
-// loff_t aesd_llseek(struct file *filep, loff_t off, int whence)
+// loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
 // {
 
 // }
