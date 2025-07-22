@@ -143,7 +143,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         if (old_entry->buffptr != NULL)
         {
             /* Remove size of an old entry from file pointer offset */
-            filep->f_pos -= old_entry->size;
+            filp->f_pos -= old_entry->size;
             kfree((void *)old_entry->buffptr);
             old_entry->buffptr = NULL;
             old_entry->size = 0;
