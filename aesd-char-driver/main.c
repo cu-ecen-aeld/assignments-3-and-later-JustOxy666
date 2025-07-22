@@ -160,7 +160,10 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
 
     new_entry->size = count;
+    PDEBUG("-------------");
+    PDEBUG("Requested write to aesd char device");
     PDEBUG("new_entry->size = %zu bytes", new_entry->size);
+    PDEBUG("filp->f_pos %lld", filp->f_pos);
     if (count == 0)
     {
         PDEBUG("write called with zero count, nothing to do");
@@ -226,7 +229,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
 
     
-    PDEBUG("-------------");
+    PDEBUG("--- WRITE IS DONE ----");
     PDEBUG("aesd_write debug info:");
     PDEBUG("dev->circ_buffer->in_offs %d", dev->circ_buffer->in_offs);
     PDEBUG("dev->circ_buffer->out_offs %d", dev->circ_buffer->out_offs);
@@ -248,7 +251,25 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
 // loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
 // {
+//     aesd_dev *dev = filp->private_data;
+//     loff_t newpos;
 
+//     switch(whence) {
+//         case SEEK_SET:
+//          newpos = off;
+//          break;
+     
+//         case SEEK_CUR:
+//          newpos = filp->f_pos + off;
+//          break;
+     
+//         case SEEK_END:
+//          newpos = /* aesd_circular_buffer_get_size(dev->circ_buffer)  */
+//          break;
+     
+//         default: /* can't happen */
+//          return -EINVAL;
+//        }
 // }
 
 struct file_operations aesd_fops = {
