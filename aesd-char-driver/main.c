@@ -227,7 +227,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     
     PDEBUG("-------------");
-    PDEDEG("aesd_write debug info:");
+    PDEBUG("aesd_write debug info:");
     PDEBUG("dev->circ_buffer->in_offs %d", dev->circ_buffer->in_offs);
     PDEBUG("dev->circ_buffer->out_offs %d", dev->circ_buffer->out_offs);
     PDEBUG("dev->circ_buffer->full %d", dev->circ_buffer->full);
@@ -246,6 +246,10 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
+// loff_t aesd_llseek(struct file *filep, loff_t off, int whence)
+// {
+
+// }
 
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
