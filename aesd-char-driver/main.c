@@ -167,7 +167,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     PDEBUG("Requested write to aesd char device");
     PDEBUG("new_entry->size = %zu bytes", new_entry->size);
     PDEBUG("filp->f_pos %lld", filp->f_pos);
-    PDEBUG("filp->f_pos = %lld", filp->f_pos);
+    PDEBUG("*f_pos = %lld", *f_pos);
     if (count == 0)
     {
         PDEBUG("write called with zero count, nothing to do");
@@ -216,8 +216,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto unlock;
     }
 
-    *f_pos += count; /* Update file position */
-
     /* Check if entry is complete */
     if (new_entry->buffptr[buf_offset + count - 1] != '\n')
     {
@@ -232,6 +230,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         dev->write_entry_new_flag = TRUE;
     }
 
+    *f_pos += count; /* Update file position */
     
     PDEBUG("--- WRITE IS DONE ----");
     PDEBUG("aesd_write debug info:");
@@ -242,6 +241,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     PDEBUG("write added buf = %s", new_entry->buffptr);
     PDEBUG("write added %zu bytes to circular buffer", (count + buf_offset));
     PDEBUG("filp->f_pos %lld", filp->f_pos);
+    PDEBUG("*f_pos %lld", *f_pos);
     PDEBUG("-------------");
 
     retval = count;
