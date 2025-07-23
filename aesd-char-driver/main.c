@@ -253,58 +253,58 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
-loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
-{
-    aesd_dev *dev = filp->private_data;
-    loff_t newpos;
+// loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
+// {
+//     aesd_dev *dev = filp->private_data;
+//     loff_t newpos;
 
-    switch (whence) 
-    {
-        case SEEK_SET:
-            newpos = dev->circ_buffer->out_offs;
-            break;
+//     switch (whence) 
+//     {
+//         case SEEK_SET:
+//             newpos = dev->circ_buffer->out_offs;
+//             break;
      
-        case SEEK_CUR:
-            newpos = filp->f_pos + off;
-            break;
+//         case SEEK_CUR:
+//             newpos = filp->f_pos + off;
+//             break;
      
-        case SEEK_END:
-            newpos = dev->offset;
-            break;
+//         case SEEK_END:
+//             newpos = dev->offset;
+//             break;
      
-        default: /* can't happen */
-            return -EINVAL;
-    }
-}
+//         default: /* can't happen */
+//             return -EINVAL;
+//     }
+// }
 
-int aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-    struct aesd_dev *dev = filp->private_data;
-    struct aesd_seekto seekto;
-    int retval = 0;
+// int aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+// {
+//     struct aesd_dev *dev = filp->private_data;
+//     struct aesd_seekto seekto;
+//     int retval = 0;
 
-    PDEBUG("aesd_ioctl called with cmd %u", cmd);
+//     PDEBUG("aesd_ioctl called with cmd %u", cmd);
 
-    if (_IOC_TYPE(cmd) != AESD_IOC_MAGIC)
-        return -ENOTTY;
+//     if (_IOC_TYPE(cmd) != AESD_IOC_MAGIC)
+//         return -ENOTTY;
 
-    if (_IOC_NR(cmd) > AESDCHAR_IOC_MAXNR)
-        return -ENOTTY;
+//     if (_IOC_NR(cmd) > AESDCHAR_IOC_MAXNR)
+//         return -ENOTTY;
 
-    switch (cmd) {
-        case AESDCHAR_IOCSEEKTO:
-            if (copy_from_user(&seekto, (struct aesd_seekto __user *)arg, sizeof(seekto)))
-                return -EFAULT;
+//     switch (cmd) {
+//         case AESDCHAR_IOCSEEKTO:
+//             if (copy_from_user(&seekto, (struct aesd_seekto __user *)arg, sizeof(seekto)))
+//                 return -EFAULT;
 
-            PDEBUG("seek to write_cmd %u, offset %u", seekto.write_cmd, seekto.write_cmd_offset);
-            break;
+//             PDEBUG("seek to write_cmd %u, offset %u", seekto.write_cmd, seekto.write_cmd_offset);
+//             break;
 
-        default:
-            return -ENOTTY;
-    }
+//         default:
+//             return -ENOTTY;
+//     }
 
-    return retval;
-}
+//     return retval;
+// }
 
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
