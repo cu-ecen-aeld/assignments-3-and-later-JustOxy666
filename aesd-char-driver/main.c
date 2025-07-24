@@ -91,6 +91,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
     PDEBUG("entry->buffptr = %s", entry->buffptr);
     PDEBUG("entry->size = %zu bytes", entry->size);
+    PDEBUG("entry_offset_byte_rtn = %zu", entry_offset_byte_rtn);
 
     read_bytes = entry_offset_byte_rtn;
     while (read_bytes < entry->size)
@@ -267,6 +268,10 @@ loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
 {
     struct aesd_dev *dev = filp->private_data;
     loff_t newpos;
+
+    PDEBUG("--------------");
+    PDEBUG("aesd_llseek debug info:");
+    PDEBUG("filp->f_pos %lld, off %lld, whence %d", filp->f_pos, off, whence);
 
     switch (whence) 
     {
