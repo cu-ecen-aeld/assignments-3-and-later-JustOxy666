@@ -300,7 +300,8 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     if (_IOC_NR(cmd) > AESDCHAR_IOC_MAXNR)
         return -ENOTTY;
 
-    switch (cmd) {
+    switch (cmd) 
+    {
         case AESDCHAR_IOCSEEKTO:
             if (copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)))
             {
