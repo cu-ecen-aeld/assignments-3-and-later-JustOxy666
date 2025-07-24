@@ -103,8 +103,8 @@ Boolean allocateMemory(U8 **buffer, U16 datablock_size);
 void printClientIpAddress(Boolean open_connection, task_params* t_arg);
 
 int acceptConnection(struct sockaddr_in* client_addr, int listen_fd);
-Boolean readClientDataToFile(int configured_fd);
-Boolean sendDataBackToClient(int configured_fd);
+Boolean readClientDataToFile(int configured_fd, long *offset);
+Boolean sendDataBackToClient(int configured_fd, long *offset);
 Boolean aesdsocket_task(void*);
 void timestamp_task(void*);
 U16 getTimespecDiffMs(struct timespec t1, struct timespec t2);
@@ -309,7 +309,7 @@ int acceptConnection(struct sockaddr_in* client_addr, int listen_fd)
     return configured_fd;
 }
 
-Boolean readClientDataToFile(int configured_fd)
+Boolean readClientDataToFile(int configured_fd, long *offset)
 {
     Boolean result = TRUE;
     FILE* fstream;
@@ -378,6 +378,7 @@ Boolean readClientDataToFile(int configured_fd)
                     /* IOCTL successful */
                     printf("ioctl success: write_cmd %u, write_cmd_offset %u, f_pos %lld\n",
                             seekto.write_cmd, seekto.write_cmd_offset, circ_buffer_req_offset);
+                    *offset = circ_buffer_req_offset;
                     result = TRUE;
                 }
             }
@@ -408,7 +409,7 @@ Boolean readClientDataToFile(int configured_fd)
     return result;
 }
 
-Boolean sendDataBackToClient(int configured_fd)
+Boolean sendDataBackToClient(int configured_fd, long *offset)
 {
     Boolean result = TRUE;
     FILE* fstream;
@@ -463,10 +464,11 @@ Boolean aesdsocket_task(void* arg)
 {
     Boolean result = TRUE;
     task_params* arguments = (task_params*)arg;
+    long offset = 0;
 
     printClientIpAddress(TRUE, arguments);
-    result &= readClientDataToFile(arguments->conf_fd);
-    result &= sendDataBackToClient(arguments->conf_fd);
+    result &= readClientDataToFile(arguments->conf_fd, &offset);
+    result &= sendDataBackToClient(arguments->conf_fd, &offset);
 
     /* Data block complete, close current connection */
     close(arguments->conf_fd);
