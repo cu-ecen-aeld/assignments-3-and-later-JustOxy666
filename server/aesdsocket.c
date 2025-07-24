@@ -376,8 +376,6 @@ Boolean readClientDataToFile(int configured_fd, long *offset)
                 else
                 {
                     /* IOCTL successful */
-                    printf("ioctl success: write_cmd %u, write_cmd_offset %u, f_pos %lld\n",
-                            seekto.write_cmd, seekto.write_cmd_offset, circ_buffer_req_offset);
                     *offset = circ_buffer_req_offset;
                     result = TRUE;
                 }
@@ -433,11 +431,7 @@ Boolean sendDataBackToClient(int configured_fd, long *offset)
         }
 
         /* Put file pointer before next block */
-        printf("offset to pass to fseek %ld\n", (counter + *offset));
-        // int cur_offset = fseek(fstream, (counter + *offset), SEEK_SET);
         off_t cur_offset = lseek(fileno(fstream), (counter + *offset), SEEK_SET);
-        printf("fseek returned %d\n", cur_offset);
-        // *offset = 0;
         for (internal_cntr = 0; internal_cntr < DATA_BLOCK_SIZE; internal_cntr++)
         {
             counter++;

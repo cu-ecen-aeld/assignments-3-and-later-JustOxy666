@@ -94,6 +94,8 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     PDEBUG("entry_offset_byte_rtn = %zu", entry_offset_byte_rtn);
 
     read_bytes = 0U;
+
+    /* Go through the entry and read every byte from offset value */
     while ((read_bytes + entry_offset_byte_rtn) < entry->size)
     {
         if (entry->buffptr != NULL)
@@ -103,6 +105,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                         sizeof(char));
             read_bytes++;
 
+            /* Check if we read all the entry */
             if ((read_bytes + entry_offset_byte_rtn) >= count)
             {   
                 PDEBUG("read_bytes >= count, breaking out of loop");
