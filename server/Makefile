@@ -8,14 +8,14 @@ OBJ ?= aesdsocket
 
 default:
 	$(CROSS_COMPILE) $(CC) $(DBGFLAGS) $(LDFLAGS) ${CFLAGS} $(DUSE_AESD_CHAR_DEVICE) -o $(OBJ) $(SRC)
-all:${CFLAGS} 
+all:
 	$(CROSS_COMPILE) $(CC) $(DBGFLAGS) $(LDFLAGS) ${CFLAGS} $(DUSE_AESD_CHAR_DEVICE) -o $(OBJ) $(SRC)
-debug:${CFLAGS} 
+debug:
 	$(CROSS_COMPILE) $(CC) $(DBGFLAGS) $(LDFLAGS) ${CFLAGS} $(DBGBUILDFLAGS) $(DUSE_AESD_CHAR_DEVICE) -o $(OBJ) $(SRC)
-debug_no_char_device:${CFLAGS} 
+debug_no_char_device:
 	$(CROSS_COMPILE) $(CC) $(DBGFLAGS) $(LDFLAGS) ${CFLAGS} $(DBGBUILDFLAGS) -o $(OBJ) $(SRC) -DUSE_AESD_CHAR_DEVICE=0
-no_char_device:${CFLAGS} 
+no_char_device:
 	$(CROSS_COMPILE) $(CC) $(DBGFLAGS) $(LDFLAGS) ${CFLAGS} -o $(OBJ) $(SRC) -DUSE_AESD_CHAR_DEVICE=0
-${CFLAGS} 
+
 clean:
 	rm -f *.o aesdsocket
