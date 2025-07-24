@@ -10,8 +10,11 @@
 #include <stdlib.h>
 #include <netdb.h> /* gethints() */
 #include <arpa/inet.h> /* get IP */
+#include <sys/ioctl.h> /* ioctl */
 #include <pthread.h>
 #include <time.h>
+
+#include "aesd_ioctl.h" /* seekto struct */
 
 #ifndef USE_AESD_CHAR_DEVICE
 #define USE_AESD_CHAR_DEVICE (0)
@@ -318,6 +321,7 @@ Boolean readClientDataToFile(int configured_fd)
     {
         allocateMemory(&buf, DATA_BLOCK_SIZE);
 
+        /* Read buffer from socket */
         for (internal_cntr = 0; internal_cntr < DATA_BLOCK_SIZE; internal_cntr++)
         {
             if (recv(configured_fd, &buf[internal_cntr], sizeof(char), 0) == FAIL)
@@ -355,10 +359,42 @@ Boolean readClientDataToFile(int configured_fd)
             result = FALSE;
         }
 
-        /* Copy bytes from buf to file stream */
-        if (fwrite(buf, sizeof(char), internal_cntr, fstream) == 0)
+        /* Check if ioctl command requested */
+        if (strncmp((char*)buf, "AESDCHAR_IOCSEEKTO:", 19) == 0)
         {
-            printf("ERROR: Nothing is written to %s", SOCKET_DATA_FILEPATH);
+            struct aesd_seekto seekto;
+            long circ_buffer_req_offset;
+            if (sscanf((char*)buf, "AESDCHAR_IOCSEEKTO:%u,%u", &seekto.write_cmd, &seekto.write_cmd_offset) == 2)
+            {
+                /* Get f_pos offset to selected entry & offset */
+                if ((circ_buffer_req_offset = ioctl(fileno(fstream), AESDCHAR_IOCSEEKTO, &seekto)) < 0)
+                {
+                    printf("ioctl: %s\n", strerror(errno));
+                    data_block_end = TRUE;
+                    result = FALSE;
+                }
+                else
+                {
+                    /* IOCTL successful */
+                    printf("ioctl success: write_cmd %u, write_cmd_offset %u, f_pos %lld\n",
+                            seekto.write_cmd, seekto.write_cmd_offset, circ_buffer_req_offset);
+                    result = TRUE;
+                }
+            }
+            else
+            {
+                printf("Invalid ioctl command format\n");
+                data_block_end = TRUE;
+                result = FALSE;
+            }
+        }
+        else /* Regular write requested */
+        {
+            /* Copy bytes from buf to file stream */
+            if (fwrite(buf, sizeof(char), internal_cntr, fstream) == 0)
+            {
+                printf("ERROR: Nothing is written to %s", SOCKET_DATA_FILEPATH);
+            }
         }
 
         /* Free memory */
