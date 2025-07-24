@@ -77,7 +77,7 @@ long aesd_buffer_find_offset(struct aesd_circular_buffer *buffer, uint32_t write
         /* Check if we are on requested entry */
         if (buf_index == write_cmd)
         {
-            if (buffer->entry[buf_index].size > write_cmd_offset)
+            if (write_cmd_offset >= buffer->entry[buf_index].size)
             {
                 /* Error: incorrect entry offset requested */
                 offset = -1;
