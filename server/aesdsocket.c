@@ -415,7 +415,8 @@ Boolean sendDataBackToClient(int configured_fd, long *offset)
     FILE* fstream;
     U8* buf = NULL;
     Boolean data_block_end = FALSE;
-    int internal_cntr, counter = 0; /* total bytes counter */
+    int internal_cntr;
+    long counter = 0; /* total bytes counter */
 
     while (data_block_end == FALSE)
     {
@@ -432,8 +433,9 @@ Boolean sendDataBackToClient(int configured_fd, long *offset)
         }
 
         /* Put file pointer before next block */
-        fseek(fstream, (counter + *offset), SEEK_SET);
-        *offset = 0;
+        int cur_offset = fseek(fstream, (counter + *offset), SEEK_SET);
+        printf("fseek returned %d\n", cur_offset);
+        // *offset = 0;
         for (internal_cntr = 0; internal_cntr < DATA_BLOCK_SIZE; internal_cntr++)
         {
             counter++;

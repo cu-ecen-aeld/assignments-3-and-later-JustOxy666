@@ -291,6 +291,9 @@ loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
             return -EINVAL;
     }
 
+    filp->f_pos = newpos;
+    PDEBUG("newpos %lld", newpos);
+    PDEBUG("--------------");
     return newpos;
 }
 
