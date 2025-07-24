@@ -33,6 +33,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 struct aesd_dev *aesd_device;
 
 void aesd_cleanup_module(void);
+static long aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset);
 
 
 int aesd_open(struct inode *inode, struct file *filp)
@@ -264,7 +265,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
 loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
 {
-    aesd_dev *dev = filp->private_data;
+    struct aesd_dev *dev = filp->private_data;
     loff_t newpos;
 
     switch (whence) 
@@ -284,6 +285,8 @@ loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
         default: /* can't happen */
             return -EINVAL;
     }
+
+    return newpos;
 }
 
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
