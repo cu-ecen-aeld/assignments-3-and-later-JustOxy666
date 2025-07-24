@@ -49,12 +49,6 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         {
             entry = &buffer->entry[buf_index];
             *entry_offset_byte_rtn = (char_offset - bytecnt);
-
-            PDEBUG("-------------");
-            PDEBUG("aesd_circular_buffer_find_entry_offset_for_fpos: entry found");
-            PDEBUG("entry: %s", entry->buffptr);
-            PDEBUG("entry->size: %zu bytes", entry->size);
-            PDEBUG("char_offset %zu, entry_offset_byte_rtn %zu", char_offset, *entry_offset_byte_rtn);
             break;
         }
 

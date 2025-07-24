@@ -433,6 +433,7 @@ Boolean sendDataBackToClient(int configured_fd, long *offset)
 
         /* Put file pointer before next block */
         fseek(fstream, (counter + *offset), SEEK_SET);
+        *offset = 0;
         for (internal_cntr = 0; internal_cntr < DATA_BLOCK_SIZE; internal_cntr++)
         {
             counter++;
