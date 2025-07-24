@@ -92,7 +92,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     PDEBUG("entry->buffptr = %s", entry->buffptr);
     PDEBUG("entry->size = %zu bytes", entry->size);
 
-    read_bytes = 0U;
+    read_bytes = entry_offset_byte_rtn;
     while (read_bytes < entry->size)
     {
         if (entry->buffptr != NULL)
