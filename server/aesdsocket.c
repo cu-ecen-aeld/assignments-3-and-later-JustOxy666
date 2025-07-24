@@ -14,7 +14,7 @@
 #include <pthread.h>
 #include <time.h>
 
-#include "aesd_ioctl.h" /* seekto struct */
+#include "aesd-char-driver/aesd_ioctl.h" /* seekto struct */
 
 #ifndef USE_AESD_CHAR_DEVICE
 #define USE_AESD_CHAR_DEVICE (0)
