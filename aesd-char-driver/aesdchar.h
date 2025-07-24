@@ -31,6 +31,7 @@ struct aesd_dev
     struct aesd_circular_buffer *circ_buffer; /* Circular buffer for AESD data */
     struct mutex mutex_lock; /* Mutex for synchronizing access to the circular buffer */
     struct cdev cdev;     /* Char device structure      */
+    unsigned long size;       /* amount of data stored here */
 };
 
 

@@ -10,8 +10,11 @@
 #include <stdlib.h>
 #include <netdb.h> /* gethints() */
 #include <arpa/inet.h> /* get IP */
+#include <sys/ioctl.h> /* ioctl */
 #include <pthread.h>
 #include <time.h>
+
+#include "aesd_ioctl.h" /* seekto struct */
 
 #ifndef USE_AESD_CHAR_DEVICE
 #define USE_AESD_CHAR_DEVICE (0)
@@ -100,8 +103,8 @@ Boolean allocateMemory(U8 **buffer, U16 datablock_size);
 void printClientIpAddress(Boolean open_connection, task_params* t_arg);
 
 int acceptConnection(struct sockaddr_in* client_addr, int listen_fd);
-Boolean readClientDataToFile(int configured_fd);
-Boolean sendDataBackToClient(int configured_fd);
+Boolean readClientDataToFile(int configured_fd, long *offset);
+Boolean sendDataBackToClient(int configured_fd, long *offset);
 Boolean aesdsocket_task(void*);
 void timestamp_task(void*);
 U16 getTimespecDiffMs(struct timespec t1, struct timespec t2);
@@ -306,7 +309,7 @@ int acceptConnection(struct sockaddr_in* client_addr, int listen_fd)
     return configured_fd;
 }
 
-Boolean readClientDataToFile(int configured_fd)
+Boolean readClientDataToFile(int configured_fd, long *offset)
 {
     Boolean result = TRUE;
     FILE* fstream;
@@ -318,6 +321,7 @@ Boolean readClientDataToFile(int configured_fd)
     {
         allocateMemory(&buf, DATA_BLOCK_SIZE);
 
+        /* Read buffer from socket */
         for (internal_cntr = 0; internal_cntr < DATA_BLOCK_SIZE; internal_cntr++)
         {
             if (recv(configured_fd, &buf[internal_cntr], sizeof(char), 0) == FAIL)
@@ -355,10 +359,41 @@ Boolean readClientDataToFile(int configured_fd)
             result = FALSE;
         }
 
-        /* Copy bytes from buf to file stream */
-        if (fwrite(buf, sizeof(char), internal_cntr, fstream) == 0)
+        /* Check if ioctl command requested */
+        if (strncmp((char*)buf, "AESDCHAR_IOCSEEKTO:", 19) == 0)
         {
-            printf("ERROR: Nothing is written to %s", SOCKET_DATA_FILEPATH);
+            struct aesd_seekto seekto;
+            long circ_buffer_req_offset;
+            if (sscanf((char*)buf, "AESDCHAR_IOCSEEKTO:%u,%u", &seekto.write_cmd, &seekto.write_cmd_offset) == 2)
+            {
+                /* Get f_pos offset to selected entry & offset */
+                if ((circ_buffer_req_offset = ioctl(fileno(fstream), AESDCHAR_IOCSEEKTO, &seekto)) < 0)
+                {
+                    printf("ioctl: %s\n", strerror(errno));
+                    data_block_end = TRUE;
+                    result = FALSE;
+                }
+                else
+                {
+                    /* IOCTL successful */
+                    *offset = circ_buffer_req_offset;
+                    result = TRUE;
+                }
+            }
+            else
+            {
+                printf("Invalid ioctl command format\n");
+                data_block_end = TRUE;
+                result = FALSE;
+            }
+        }
+        else /* Regular write requested */
+        {
+            /* Copy bytes from buf to file stream */
+            if (fwrite(buf, sizeof(char), internal_cntr, fstream) == 0)
+            {
+                printf("ERROR: Nothing is written to %s", SOCKET_DATA_FILEPATH);
+            }
         }
 
         /* Free memory */
@@ -372,13 +407,14 @@ Boolean readClientDataToFile(int configured_fd)
     return result;
 }
 
-Boolean sendDataBackToClient(int configured_fd)
+Boolean sendDataBackToClient(int configured_fd, long *offset)
 {
     Boolean result = TRUE;
     FILE* fstream;
     U8* buf = NULL;
     Boolean data_block_end = FALSE;
-    int internal_cntr, counter = 0; /* total bytes counter */
+    int internal_cntr;
+    long counter = 0; /* total bytes counter */
 
     while (data_block_end == FALSE)
     {
@@ -395,7 +431,7 @@ Boolean sendDataBackToClient(int configured_fd)
         }
 
         /* Put file pointer before next block */
-        fseek(fstream, counter, SEEK_SET);
+        off_t cur_offset = lseek(fileno(fstream), (counter + *offset), SEEK_SET);
         for (internal_cntr = 0; internal_cntr < DATA_BLOCK_SIZE; internal_cntr++)
         {
             counter++;
@@ -427,10 +463,11 @@ Boolean aesdsocket_task(void* arg)
 {
     Boolean result = TRUE;
     task_params* arguments = (task_params*)arg;
+    long offset = 0;
 
     printClientIpAddress(TRUE, arguments);
-    result &= readClientDataToFile(arguments->conf_fd);
-    result &= sendDataBackToClient(arguments->conf_fd);
+    result &= readClientDataToFile(arguments->conf_fd, &offset);
+    result &= sendDataBackToClient(arguments->conf_fd, &offset);
 
     /* Data block complete, close current connection */
     close(arguments->conf_fd);

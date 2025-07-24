@@ -22,6 +22,7 @@
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
 #include "aesd-circular-buffer.h"
+#include "aesd_ioctl.h"
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 
@@ -32,6 +33,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 struct aesd_dev *aesd_device;
 
 void aesd_cleanup_module(void);
+static long aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset);
 
 
 int aesd_open(struct inode *inode, struct file *filp)
@@ -43,9 +45,6 @@ int aesd_open(struct inode *inode, struct file *filp)
 
     PDEBUG("open");
 
-    /**
-     * TODO: handle open
-     */
     return 0;
 }
 
@@ -54,10 +53,6 @@ int aesd_release(struct inode *inode, struct file *filp)
 {
     PDEBUG("release");
     struct aesd_dev *dev;
-
-    /**
-     * TODO: handle release
-     */
 
     dev = filp->private_data;
 
@@ -74,8 +69,13 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     struct aesd_dev *dev;
     struct aesd_buffer_entry *entry;
 
+    PDEBUG("-------------");
+    PDEBUG("aesd_read debug info:");
+    PDEBUG("filp->f_pos %lld", filp->f_pos);
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     dev = filp->private_data;
+
+    /* --------- ENTER CRITICAL SECTION ---------- */
     if (mutex_lock_interruptible(&dev->mutex_lock))
     {
 		retval = -ERESTARTSYS;
@@ -91,18 +91,22 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
     PDEBUG("entry->buffptr = %s", entry->buffptr);
     PDEBUG("entry->size = %zu bytes", entry->size);
+    PDEBUG("entry_offset_byte_rtn = %zu", entry_offset_byte_rtn);
 
     read_bytes = 0U;
-    while (read_bytes < entry->size)
+
+    /* Go through the entry and read every byte from offset value */
+    while ((read_bytes + entry_offset_byte_rtn) < entry->size)
     {
         if (entry->buffptr != NULL)
         {
             copy_to_user((const char*)buf + read_bytes,
-                        entry->buffptr + read_bytes, 
+                        entry->buffptr + read_bytes + entry_offset_byte_rtn, 
                         sizeof(char));
             read_bytes++;
 
-            if (read_bytes >= count)
+            /* Check if we read all the entry */
+            if ((read_bytes + entry_offset_byte_rtn) >= count)
             {   
                 PDEBUG("read_bytes >= count, breaking out of loop");
                 break;
@@ -110,12 +114,17 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         }
     }
 
-    PDEBUG("completed reading entry");
     *f_pos += read_bytes;
     retval += read_bytes;
+    PDEBUG("-------------");
+    PDEBUG("completed reading entry");
+    PDEBUG("read %zu bytes from entry", read_bytes);
+    PDEBUG("filp->f_pos %lld", *f_pos);
+    PDEBUG("-------------");
     
     unlock:
     mutex_unlock(&dev->mutex_lock);
+    /* --------- EXIT CRITICAL SECTION ---------- */
     
     out:
     return retval;
@@ -129,11 +138,13 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     struct aesd_dev *dev;
     struct aesd_buffer_entry *new_entry;
 
-    PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
+    PDEBUG("write %zu bytes with offset %lld", count, *f_pos);
     dev = filp->private_data;
+
+    /* --------- ENTER CRITICAL SECTION ---------- */
     if (mutex_lock_interruptible(&dev->mutex_lock))
     {
-		retval -ERESTARTSYS;
+		retval = -ERESTARTSYS;
         goto out;
     }
 
@@ -144,6 +155,9 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             &dev->circ_buffer->entry[dev->circ_buffer->in_offs];
         if (old_entry->buffptr != NULL)
         {
+            /* Remove size of an old entry from file pointer offset */
+            dev->size -= old_entry->size;
+            *f_pos -= old_entry->size;
             kfree((void *)old_entry->buffptr);
             old_entry->buffptr = NULL;
             old_entry->size = 0;
@@ -160,7 +174,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
 
     new_entry->size = count;
+    PDEBUG("-------------");
+    PDEBUG("Requested write to aesd char device");
     PDEBUG("new_entry->size = %zu bytes", new_entry->size);
+    PDEBUG("filp->f_pos %lld", filp->f_pos);
+    PDEBUG("*f_pos = %lld", *f_pos);
     if (count == 0)
     {
         PDEBUG("write called with zero count, nothing to do");
@@ -223,25 +241,100 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         dev->write_entry_new_flag = TRUE;
     }
 
+    *f_pos += count; /* Update file position */
+    dev->size += count; /* Update size of the device */
     
-    PDEBUG("-------------");
+    PDEBUG("--- WRITE IS DONE ----");
+    PDEBUG("aesd_write debug info:");
     PDEBUG("dev->circ_buffer->in_offs %d", dev->circ_buffer->in_offs);
     PDEBUG("dev->circ_buffer->out_offs %d", dev->circ_buffer->out_offs);
     PDEBUG("dev->circ_buffer->full %d", dev->circ_buffer->full);
     PDEBUG("dev->write_entry_new_flag %d", dev->write_entry_new_flag);
     PDEBUG("write added buf = %s", new_entry->buffptr);
     PDEBUG("write added %zu bytes to circular buffer", (count + buf_offset));
+    PDEBUG("filp->f_pos %lld", filp->f_pos);
+    PDEBUG("*f_pos %lld", *f_pos);
+    PDEBUG("total size (dev->size) %lu", dev->size);
     PDEBUG("-------------");
 
     retval = count;
 
     unlock:
     mutex_unlock(&dev->mutex_lock);
+    /* --------- EXIT CRITICAL SECTION ---------- */
     
     out:
     return retval;
 }
 
+loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
+{
+    struct aesd_dev *dev = filp->private_data;
+    loff_t newpos;
+
+    PDEBUG("--------------");
+    PDEBUG("aesd_llseek debug info:");
+    PDEBUG("filp->f_pos %lld, off %lld, whence %d", filp->f_pos, off, whence);
+
+    switch (whence) 
+    {
+        case SEEK_SET:
+            newpos = off;
+            break;
+     
+        case SEEK_CUR:
+            newpos = filp->f_pos + off;
+            break;
+     
+        case SEEK_END:
+            newpos = dev->size;
+            break;
+     
+        default: /* can't happen */
+            return -EINVAL;
+    }
+
+    filp->f_pos = newpos;
+    PDEBUG("newpos %lld", newpos);
+    PDEBUG("--------------");
+    return newpos;
+}
+
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    struct aesd_dev *dev = filp->private_data;
+    struct aesd_seekto seekto;
+    long retval = 0;
+
+    PDEBUG("aesd_ioctl called with cmd %u", cmd);
+
+    if (_IOC_TYPE(cmd) != AESD_IOC_MAGIC)
+        return -ENOTTY;
+
+    if (_IOC_NR(cmd) > AESDCHAR_IOC_MAXNR)
+        return -ENOTTY;
+
+    switch (cmd) 
+    {
+        case AESDCHAR_IOCSEEKTO:
+            if (copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)))
+            {
+                return -EFAULT;
+            }
+            else
+            {
+                PDEBUG("seek to write_cmd %u, offset %u", seekto.write_cmd, seekto.write_cmd_offset);
+                retval = aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
+            }
+
+            break;
+
+        default:
+            return -ENOTTY;
+    }
+
+    return retval;
+}
 
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
@@ -249,7 +342,54 @@ struct file_operations aesd_fops = {
     .write =    aesd_write,
     .open =     aesd_open,
     .release =  aesd_release,
+    .unlocked_ioctl = aesd_ioctl,
+    .llseek =   aesd_llseek,
 };
+
+/*
+** Looks through the circular buffer for the entry specified 
+** by write_cmd and write_cmd_offset. Sets filp->f_pos to the located offset
+** 
+** Returns: offset value on success, negative error code on failure
+*/
+static long aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset)
+{
+    long retval = 0;
+    long offset = 0;
+    struct aesd_dev *dev = filp->private_data;
+
+    if (write_cmd >= (AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED - 1))
+    {
+        PDEBUG("write_cmd %u is out of bounds", write_cmd);
+        return -EINVAL;
+    }
+
+    /* --------- ENTER CRITICAL SECTION ---------- */
+    if (mutex_lock_interruptible(&dev->mutex_lock))
+    {
+		retval = -ERESTARTSYS;
+        goto out;
+    }
+    
+    offset = aesd_buffer_find_offset(dev->circ_buffer, write_cmd, write_cmd_offset);
+    if (offset < 0)
+    {
+        PDEBUG("aesd_buffer_find_offset failed, incorrect write_cmd_offset %u for write_cmd %u",
+                write_cmd_offset, write_cmd);
+        retval = -EINVAL;
+        goto unlock;
+    }
+
+    PDEBUG("aesd_adjust_file_offset: final buffer offset %ld", offset);
+    filp->f_pos = offset;
+
+    unlock:
+    mutex_unlock(&dev->mutex_lock);
+    /* --------- EXIT CRITICAL SECTION ---------- */
+
+    out:
+    return offset;
+}
 
 
 static int aesd_setup_cdev(struct aesd_dev *dev)
